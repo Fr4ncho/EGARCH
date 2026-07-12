@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B0E14">
 <title>EGARCH Lab — La anatomía asimétrica del riesgo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -55,7 +56,7 @@ section p{max-width:72ch;color:#C6CEDD;margin-bottom:1.05rem}
 .lead{font-size:1.13rem;color:var(--txt)}
 
 /* ---- hero ---- */
-#hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;max-width:none;padding:0}
+#hero{position:relative;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;justify-content:center;max-width:none;padding:0}
 #heroCanvas{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
 #hero .inner{position:relative;max-width:1060px;margin:0 auto;padding:8rem 2rem 4rem;width:100%}
 #hero h1{font-size:clamp(2.6rem,6.4vw,4.9rem);font-weight:300;letter-spacing:-.01em}
@@ -70,7 +71,7 @@ section p{max-width:72ch;color:#C6CEDD;margin-bottom:1.05rem}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.4rem 1.5rem;margin:1.4rem 0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem}
-@media(max-width:840px){.grid2,.grid3{grid-template-columns:1fr}nav .links{display:none}}
+@media(max-width:840px){.grid2,.grid3{grid-template-columns:1fr}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.2rem 1.3rem;transition:transform .25s,border-color .25s}
 .card:hover{transform:translateY(-3px);border-color:var(--gold-dim)}
 .card h3{font-size:1.06rem;margin-bottom:.5rem;color:var(--gold)}
@@ -182,6 +183,35 @@ nav .links a.active{color:var(--gold)}
 .verdict{white-space:nowrap;display:inline-block;font-family:var(--mono);font-size:.78rem;padding:.15rem .55rem;border-radius:99px;border:1px solid}
 .verdict.yes{color:var(--pos);border-color:var(--pos)}
 .verdict.no{color:var(--muted);border-color:var(--line)}
+
+/* ---- responsive móvil ---- */
+@media(max-width:840px){
+  body{font-size:15.5px}
+  section{padding:4rem 1.1rem 1.5rem}
+  #hero .inner{padding:6.5rem 1.1rem 4.5rem}
+  #hero .meta{gap:1.4rem}
+  nav{padding:.55rem .9rem;gap:.7rem}
+  nav .links{margin-left:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;max-width:100%;padding-bottom:2px}
+  nav .links::-webkit-scrollbar{display:none}
+  nav .links a{flex:0 0 auto;font-size:.72rem}
+  .panel{padding:1.05rem .95rem}
+  .eqStage{padding:1.3rem .7rem}
+  .eqStage .term{padding:.25rem .3rem}
+  .katex{font-size:.94em}
+  table.params{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:.7rem}
+  .stat .v{font-size:1.25rem}
+  .controls{grid-template-columns:1fr 1fr;gap:.8rem 1rem}
+  .btnRow select{max-width:100%}
+  .chartCap{font-size:.66rem}
+  .refs p{font-size:.8rem;padding-left:1.2rem;text-indent:-1.2rem;word-break:break-word}
+  .scrollHint{bottom:1.2rem}
+}
+@media(max-width:420px){
+  .controls{grid-template-columns:1fr}
+  #hero h1{font-size:2.35rem}
+}
 .hr{border:none;border-top:1px solid var(--line);margin:3.4rem auto;max-width:1060px}
 </style>
 </head>
@@ -1104,13 +1134,15 @@ function forecastMC(th, lnhT, zT, horizon, sims) {
 class Plot {
   constructor(canvas, pad) {
     this.cv = canvas;
-    this.pad = Object.assign({ l: 52, r: 16, t: 14, b: 30 }, pad || {});
+    const narrow = (canvas.clientWidth || 999) < 560;
+    this.pad = Object.assign({ l: narrow ? 42 : 52, r: narrow ? 10 : 16, t: 14, b: narrow ? 26 : 30 }, pad || {});
     this.resize();
   }
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const w = this.cv.clientWidth || this.cv.parentElement.clientWidth;
-    const h = parseInt(this.cv.getAttribute('height')) || 300;
+    let h = parseInt(this.cv.getAttribute('height')) || 300;
+    if (w < 560 && h > 230) h = Math.round(h * 0.78); // pantallas angostas: menos alto, misma legibilidad
     this.cv.width = w * dpr; this.cv.height = h * dpr;
     this.cv.style.height = h + 'px';
     this.ctx = this.cv.getContext('2d');
