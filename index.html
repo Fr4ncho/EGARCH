@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EGARCH Lab — La anatomía asimétrica del riesgo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+:root{
+  --ink:#0B0E14;            /* fondo terminal */
+  --panel:#121722;
+  --panel2:#171E2C;
+  --line:#242D40;
+  --txt:#E9EDF5;
+  --muted:#8D97AC;
+  --gold:#E5B34C;           /* el oro: acento principal */
+  --gold-dim:#9a7833;
+  --neg:#E0605D;            /* choque negativo */
+  --pos:#4CC2A8;            /* choque positivo */
+  --disp:'Fraunces',Georgia,serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--txt);font-family:var(--body);font-weight:300;line-height:1.7;font-size:16.5px;overflow-x:hidden}
+::selection{background:var(--gold);color:var(--ink)}
+h1,h2,h3{font-family:var(--disp);font-weight:500;line-height:1.15}
+a{color:var(--gold);text-decoration:none}
+strong{font-weight:600;color:var(--txt)}
+em{color:var(--gold)}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.katex{font-size:1.06em}
+.katex-display{margin:1.2rem 0;overflow-x:auto;overflow-y:hidden;padding:.3rem 0}
+
+/* ---- barra de progreso + nav ---- */
+#progress{position:fixed;top:0;left:0;height:2px;background:var(--gold);width:0%;z-index:60;transition:width .1s linear}
+nav{position:fixed;top:0;width:100%;z-index:50;display:flex;align-items:center;gap:1.4rem;
+  padding:.75rem 2rem;background:rgba(11,14,20,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .brand{font-family:var(--disp);font-size:1.05rem;color:var(--gold);letter-spacing:.02em;white-space:nowrap}
+nav .links{display:flex;gap:1.1rem;margin-left:auto;flex-wrap:wrap}
+nav .links a{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;transition:color .2s}
+nav .links a:hover,nav .links a:focus-visible{color:var(--gold)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:2px}
+
+/* ---- layout ---- */
+section{max-width:1060px;margin:0 auto;padding:5.5rem 2rem 2rem}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);margin-bottom:.9rem}
+.eyebrow::before{content:"";display:inline-block;width:26px;height:1px;background:var(--gold);vertical-align:middle;margin-right:.7rem}
+section>h2{font-size:clamp(1.7rem,3.4vw,2.5rem);margin-bottom:1.4rem}
+section p{max-width:72ch;color:#C6CEDD;margin-bottom:1.05rem}
+.lead{font-size:1.13rem;color:var(--txt)}
+
+/* ---- hero ---- */
+#hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;max-width:none;padding:0}
+#heroCanvas{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+#hero .inner{position:relative;max-width:1060px;margin:0 auto;padding:8rem 2rem 4rem;width:100%}
+#hero h1{font-size:clamp(2.6rem,6.4vw,4.9rem);font-weight:300;letter-spacing:-.01em}
+#hero h1 .gold{color:var(--gold);font-weight:600}
+#hero .sub{margin-top:1.4rem;font-size:1.15rem;color:var(--muted);max-width:60ch}
+#hero .meta{margin-top:2.6rem;display:flex;gap:2.6rem;flex-wrap:wrap;font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+#hero .meta b{display:block;color:var(--txt);font-size:1rem;font-weight:500}
+.scrollHint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);color:var(--muted);font-family:var(--mono);font-size:.7rem;letter-spacing:.25em;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,8px)}}
+
+/* ---- tarjetas y paneles ---- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.4rem 1.5rem;margin:1.4rem 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem}
+@media(max-width:840px){.grid2,.grid3{grid-template-columns:1fr}nav .links{display:none}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.2rem 1.3rem;transition:transform .25s,border-color .25s}
+.card:hover{transform:translateY(-3px);border-color:var(--gold-dim)}
+.card h3{font-size:1.06rem;margin-bottom:.5rem;color:var(--gold)}
+.card p{font-size:.92rem;color:var(--muted);margin:0}
+.card .yr{font-family:var(--mono);font-size:.72rem;color:var(--muted);letter-spacing:.15em}
+
+/* ---- controles ---- */
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem 1.6rem;margin:1rem 0 1.2rem}
+.ctrl label{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.75rem;color:var(--muted);margin-bottom:.35rem}
+.ctrl label b{color:var(--gold);font-weight:500}
+input[type=range]{width:100%;accent-color:var(--gold);height:4px;cursor:pointer}
+.btn{background:transparent;border:1px solid var(--gold-dim);color:var(--gold);font-family:var(--mono);
+  font-size:.78rem;letter-spacing:.08em;padding:.55rem 1.1rem;border-radius:6px;cursor:pointer;transition:all .2s}
+.btn:hover{background:var(--gold);color:var(--ink)}
+.btn.primary{background:var(--gold);color:var(--ink);font-weight:500}
+.btn.primary:hover{background:#f3c765}
+.btn:disabled{opacity:.45;cursor:wait}
+select,input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-family:var(--mono);
+  font-size:.85rem;padding:.5rem .7rem;border-radius:6px}
+.btnRow{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;margin:.6rem 0 1rem}
+.chip{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);color:var(--muted);
+  padding:.3rem .7rem;border-radius:99px;cursor:pointer;background:transparent;transition:all .2s}
+.chip:hover,.chip.on{border-color:var(--gold);color:var(--gold)}
+
+/* ---- canvas ---- */
+.chart{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;display:block}
+.chartCap{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin:.5rem 0 1.4rem;letter-spacing:.05em}
+
+/* ---- ecuación interactiva ---- */
+.eqStage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:2.2rem 1.6rem;text-align:center;margin:1.6rem 0}
+.eqStage .term{display:inline-block;padding:.35rem .5rem;border-radius:8px;cursor:help;transition:background .2s;position:relative}
+.eqStage .term:hover,.eqStage .term.on{background:var(--panel2);box-shadow:inset 0 0 0 1px var(--gold-dim)}
+.eqLegend{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.9rem;margin-top:1.4rem;text-align:left}
+.eqLegend .lg{border-left:3px solid var(--line);padding:.35rem .9rem;font-size:.88rem;color:var(--muted);border-radius:2px;transition:all .2s}
+.eqLegend .lg b{display:block;color:var(--txt);font-family:var(--mono);font-size:.78rem;margin-bottom:.15rem}
+.eqLegend .lg.on{border-left-color:var(--gold);background:var(--panel);color:#C6CEDD}
+
+/* ---- estadísticas / parámetros ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin:1.2rem 0}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem}
+.stat .k{font-family:var(--mono);font-size:.7rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.stat .v{font-family:var(--mono);font-size:1.45rem;color:var(--gold);margin:.15rem 0}
+.stat .d{font-size:.78rem;color:var(--muted);line-height:1.45}
+table.params{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.84rem;margin:1rem 0}
+table.params th{color:var(--muted);font-weight:400;text-align:right;padding:.5rem .8rem;border-bottom:1px solid var(--line);letter-spacing:.06em}
+table.params td{text-align:right;padding:.5rem .8rem;border-bottom:1px solid #1a2130;color:var(--txt)}
+table.params td:first-child,table.params th:first-child{text-align:left;color:var(--gold)}
+.sig{color:var(--pos)}
+.nosig{color:var(--muted)}
+
+/* ---- dualidad de signo ---- */
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin:1.4rem 0}
+.dual .side{border-radius:10px;padding:1.2rem 1.3rem;border:1px solid var(--line)}
+.dual .side.neg{background:linear-gradient(160deg,rgba(224,96,93,.10),var(--panel));border-color:rgba(224,96,93,.35)}
+.dual .side.pos{background:linear-gradient(160deg,rgba(76,194,168,.10),var(--panel));border-color:rgba(76,194,168,.35)}
+.dual h3{font-size:1rem;margin-bottom:.5rem}
+.dual .neg h3{color:var(--neg)}.dual .pos h3{color:var(--pos)}
+.dual p{font-size:.9rem;color:var(--muted);margin:0}
+@media(max-width:700px){.dual{grid-template-columns:1fr}}
+
+/* ---- notas y alertas ---- */
+.note{border-left:3px solid var(--gold);background:var(--panel);padding:1rem 1.3rem;border-radius:0 10px 10px 0;margin:1.3rem 0;font-size:.93rem;color:#C6CEDD}
+.note.warn{border-left-color:var(--neg)}
+.status{font-family:var(--mono);font-size:.8rem;color:var(--muted);min-height:1.4em}
+.status.err{color:var(--neg)}
+.status.ok{color:var(--pos)}
+.interp{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:1.1rem 1.3rem;font-size:.93rem;color:#C6CEDD;margin:1rem 0}
+.interp b{color:var(--gold)}
+
+/* ---- listas de uso ---- */
+.useList{list-style:none;font-size:.93rem}
+.useList li{padding:.5rem 0 .5rem 1.6rem;position:relative;color:#C6CEDD;border-bottom:1px solid #161d2b}
+.useList li::before{content:"→";position:absolute;left:0;color:var(--gold);font-family:var(--mono)}
+.useList.no li::before{content:"✕";color:var(--neg)}
+
+/* ---- referencias ---- */
+.refs em{color:inherit}
+.refs p{font-size:.87rem;color:var(--muted);padding-left:2.2rem;text-indent:-2.2rem;max-width:none}
+footer{border-top:1px solid var(--line);margin-top:5rem;padding:2.4rem 2rem;text-align:center;color:var(--muted);font-family:var(--mono);font-size:.75rem;letter-spacing:.08em}
+
+/* ---- reveal on scroll ---- */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .8s ease,transform .8s ease}
+.reveal.vis{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  .scrollHint{animation:none}
+  html{scroll-behavior:auto}
+}
+
+/* ---- puntos de navegación lateral ---- */
+.dots{position:fixed;right:1.1rem;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:.65rem;z-index:55}
+.dots a{width:8px;height:8px;border-radius:50%;background:var(--line);display:block;transition:background .25s,transform .25s}
+.dots a:hover{background:var(--gold-dim)}
+.dots a.on{background:var(--gold);transform:scale(1.45)}
+@media(max-width:900px){.dots{display:none}}
+nav .links a.active{color:var(--gold)}
+/* ---- revelado escalonado de tarjetas ---- */
+.reveal .card,.reveal .stat{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+.reveal.vis .card,.reveal.vis .stat{opacity:1;transform:none}
+.reveal.vis .card:nth-child(1),.reveal.vis .stat:nth-child(1){transition-delay:.05s}
+.reveal.vis .card:nth-child(2),.reveal.vis .stat:nth-child(2){transition-delay:.14s}
+.reveal.vis .card:nth-child(3),.reveal.vis .stat:nth-child(3){transition-delay:.23s}
+.reveal.vis .card:nth-child(4),.reveal.vis .stat:nth-child(4){transition-delay:.32s}
+.reveal.vis .card:nth-child(5),.reveal.vis .stat:nth-child(5){transition-delay:.41s}
+.reveal.vis .card:nth-child(6),.reveal.vis .stat:nth-child(6){transition-delay:.50s}
+@media (prefers-reduced-motion: reduce){.reveal .card,.reveal .stat{opacity:1;transform:none;transition:none}}
+.status.busy::after{content:"…";animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.verdict{white-space:nowrap;display:inline-block;font-family:var(--mono);font-size:.78rem;padding:.15rem .55rem;border-radius:99px;border:1px solid}
+.verdict.yes{color:var(--pos);border-color:var(--pos)}
+.verdict.no{color:var(--muted);border-color:var(--line)}
+.hr{border:none;border-top:1px solid var(--line);margin:3.4rem auto;max-width:1060px}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<nav aria-label="Secciones">
+  <span class="brand">EGARCH·Lab</span>
+  <div class="links">
+    <a href="#s1">Hechos estilizados</a>
+    <a href="#s2">Genealogía</a>
+    <a href="#s3">El modelo</a>
+    <a href="#s4">Asimetría</a>
+    <a href="#s5">Simulador</a>
+    <a href="#s6">Caso: Oro</a>
+    <a href="#s7">Lab en vivo</a>
+    <a href="#s8">Límites</a>
+  </div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<section id="hero">
+  <canvas id="heroCanvas" aria-hidden="true"></canvas>
+  <div class="inner">
+    <div class="eyebrow">Econometría financiera · Nelson (1991)</div>
+    <h1>La anatomía <span class="gold">asimétrica</span><br>del riesgo financiero</h1>
+    <p class="sub">Una exposición interactiva del modelo <strong>EGARCH</strong>: por qué la volatilidad
+      tiene memoria, por qué las malas noticias no pesan lo mismo que las buenas, y cómo el logaritmo
+      de la varianza cambió la forma de medir el riesgo.</p>
+    <div class="meta">
+      <div><b>ARCH → GARCH → EGARCH</b>Engle 1982 · Bollerslev 1986 · Nelson 1991</div>
+      <div><b>Caso aplicado</b>Oro (GLD) · EGARCH(1,1)-t</div>
+      <div><b>Laboratorio</b>Estimación MV y pronóstico en vivo</div>
+    </div>
+  </div>
+  <div class="scrollHint">DESLIZA</div>
+</section>
+
+<!-- ===================== S1: HECHOS ESTILIZADOS ===================== -->
+<section id="s1" class="reveal">
+  <div class="eyebrow">01 · El problema</div>
+  <h2>Los hechos estilizados: la evidencia que rompió la varianza constante</h2>
+  <p class="lead">La econometría clásica (Box–Jenkins, ARMA/ARIMA) modela la <em>media</em> de una serie
+    asumiendo <strong>homocedasticidad</strong>: una varianza de los errores constante en el tiempo.
+    Las series financieras violan ese supuesto de forma sistemática y observable.</p>
+  <p>La serie de abajo son retornos diarios generados por la dinámica estimada para el oro.
+    Obsérvala unos segundos: la turbulencia no se reparte al azar — <strong>se agrupa</strong>.</p>
+
+  <canvas id="cvClusters" class="chart" height="320"></canvas>
+  <div class="chartCap">RETORNOS DIARIOS (%) · las franjas doradas marcan episodios de alta varianza condicional</div>
+
+  <div class="grid3">
+    <div class="card"><h3>Reversión a la media</h3><p>Los retornos fluctúan alrededor de una constante cercana a cero: no hay tendencia en el retorno, aunque el precio sí la tenga.</p></div>
+    <div class="card"><h3>Volatility clustering</h3><p>Cambios grandes siguen a cambios grandes; cambios pequeños, a pequeños. La varianza de hoy depende de la de ayer: <strong>heterocedasticidad condicional</strong>.</p></div>
+    <div class="card"><h3>Colas pesadas</h3><p>Los eventos extremos ocurren mucho más de lo que predice una Normal. La distribución empírica es <strong>leptocúrtica</strong>.</p></div>
+  </div>
+
+  <p style="margin-top:1.6rem">La tercera propiedad se ve mejor de frente. El histograma empírico contra la campana Normal
+    con la misma media y varianza: la Normal se queda corta en el centro y —lo más grave para la gestión de riesgo—
+    en las <strong>colas</strong>.</p>
+  <div class="btnRow">
+    <button class="chip on" id="chipT">Superponer t-Student (ν=5.7)</button>
+  </div>
+  <canvas id="cvHist" class="chart" height="300"></canvas>
+  <div class="chartCap">DENSIDAD EMPÍRICA VS. NORMAL VS. T-STUDENT · escala log en el eje vertical para revelar las colas</div>
+
+  <h3 style="margin:2.2rem 0 .8rem;font-size:1.25rem">La firma estadística de la memoria</h3>
+  <p>La paradoja que define a esta familia de modelos: el retorno de hoy <strong>no</strong> predice el de mañana
+    (la ACF de r muere dentro de la banda de ruido), pero su <strong>magnitud</strong> sí se recuerda a sí misma
+    durante decenas de días (la ACF de |r| decae lentísimo). El mercado olvida la dirección, pero no la intensidad.</p>
+  <canvas id="cvACF" class="chart" height="260"></canvas>
+  <div class="chartCap">FUNCIÓN DE AUTOCORRELACIÓN, REZAGOS 1–20 · banda de no significancia: ±1.96/√T</div>
+  <div class="note">Si la Normal fuese correcta, un movimiento de ±5 desviaciones sería un evento de "una vez por milenio".
+    En los mercados ocurre varias veces por década. Ignorar las colas es subestimar el riesgo justo cuando más importa.</div>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S2: GENEALOGÍA ===================== -->
+<section id="s2" class="reveal">
+  <div class="eyebrow">02 · La respuesta</div>
+  <h2>De ARCH a EGARCH: cuarenta años en cuatro ideas</h2>
+  <p class="lead">Cada modelo de esta familia nace de una falla documentada del anterior.
+    Entender esa cadena es entender por qué el EGARCH tiene la forma que tiene.</p>
+
+  <div class="grid2">
+    <div class="card"><span class="yr">1982 · ENGLE</span><h3>ARCH(q)</h3>
+      <div class="eq" data-eq="h_t = \alpha_0 + \sum_{i=1}^{q}\alpha_i\,\varepsilon_{t-i}^{2}"></div>
+      <p>La varianza condicional depende del cuadrado de los choques pasados. Primera formalización del clustering. Problema: exige muchos rezagos y todos los <span class="mono">α ≥ 0</span>.</p></div>
+    <div class="card"><span class="yr">1986 · BOLLERSLEV</span><h3>GARCH(p,q)</h3>
+      <div class="eq" data-eq="h_t = \alpha_0 + \sum_{i=1}^{q}\alpha_i\,\varepsilon_{t-i}^{2} + \sum_{j=1}^{p}\beta_j\,h_{t-j}"></div>
+      <p>Añade la propia varianza rezagada: memoria larga con pocos parámetros. Pero sigue siendo <strong>simétrico</strong> — el término cuadrático borra el signo del choque — y sigue atado a restricciones de no negatividad.</p></div>
+    <div class="card"><span class="yr">1976 · BLACK</span><h3>El efecto apalancamiento</h3>
+      <p>Cuando el precio de una acción cae, el ratio deuda/capital de la firma sube: la empresa se vuelve objetivamente más riesgosa. Las caídas generan <strong>más</strong> volatilidad futura que las subidas de igual magnitud. Un modelo simétrico no puede verlo.</p></div>
+    <div class="card" style="border-color:var(--gold-dim)"><span class="yr">1991 · NELSON</span><h3>EGARCH(p,q)</h3>
+      <p>Dos jugadas en una: modela el <strong>logaritmo</strong> de la varianza (adiós restricciones de signo, la varianza implícita e<sup>ln h</sup> es positiva por construcción) e introduce la función <span class="mono">g(z)</span> que <strong>distingue el signo</strong> del choque.</p></div>
+  </div>
+
+  <div class="note"><strong>El detalle técnico que casi nadie cuenta:</strong> en la práctica, los optimizadores numéricos de
+    ARCH/GARCH violan las restricciones <span class="mono">α, β ≥ 0</span> durante la búsqueda, generando varianzas negativas
+    e inestabilidad. La transformación logarítmica de Nelson no es cosmética: convierte un problema de optimización
+    restringida en uno libre, con convergencia más estable en datos de colas gruesas (Casas y Cepeda, 2008).</div>
+
+  <h3 style="margin:2.4rem 0 .8rem;font-size:1.25rem">La evidencia empírica que lo respalda</h3>
+  <div class="grid3">
+    <div class="card"><span class="yr">PAGAN &amp; SCHWERT (1990)</span><h3>Acciones de EE.UU.</h3>
+      <p>Compararon modelos de volatilidad mensual y documentaron <strong>no linealidades</strong> en los retornos
+      bursátiles que ARCH y GARCH convencionales no capturaban — la anticipación empírica de la necesidad de
+      especificaciones asimétricas.</p></div>
+    <div class="card"><span class="yr">CASAS &amp; CEPEDA (2008)</span><h3>Caso Gillette</h3>
+      <p>Contrastando por AIC/BIC: un <strong>GARCH(1,2)</strong> ganó para la serie de <em>precios</em>, pero un
+      <strong>EGARCH(2,1)</strong> resultó superior para los <em>retornos</em> — la asimetría importa justo donde
+      se mide el riesgo.</p></div>
+    <div class="card"><span class="yr">FERNÁNDEZ CASTAÑO (2010)</span><h3>IGBC, Colombia</h3>
+      <p>Sobre el índice de la Bolsa de Valores de Colombia, el EGARCH superó al GARCH estándar: los choques
+      negativos elevaban la volatilidad más que los positivos de igual magnitud — el efecto apalancamiento de
+      Black (1976) verificado en un mercado emergente.</p></div>
+  </div>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S3: LA ECUACIÓN ===================== -->
+<section id="s3" class="reveal">
+  <div class="eyebrow">03 · Formulación matemática</div>
+  <h2>La ecuación, pieza por pieza</h2>
+  <p class="lead">Del caso general de Nelson al EGARCH(1,1) que estimaremos — y luego, cada término bajo el microscopio:
+    pasa el cursor (o toca) sobre la ecuación interactiva para ver qué hace cada pieza.</p>
+
+  <p>La formulación general de Nelson (1991) para un proceso de orden <span class="mono">(p, q)</span> opera sobre
+    la transformación logarítmica de la varianza condicional:</p>
+  <div class="eq disp" data-eq="\ln h_t \;=\; \alpha_0 \;+\; \sum_{j=1}^{p}\beta_j \ln h_{t-j} \;+\; \sum_{i=1}^{q} g\!\left(z_{t-i}\right)"></div>
+  <p>donde la <strong>innovación estandarizada</strong> pondera la perturbación aleatoria por la raíz de su propia
+    varianza condicional:</p>
+  <div class="eq disp" data-eq="z_t \;=\; \frac{\varepsilon_t}{\sqrt{h_t}}"></div>
+  <p>Como el rango del logaritmo es todo ℝ <span class="mono">(−∞ &lt; ln hₜ &lt; +∞)</span>, la varianza implícita
+    <span class="mono">hₜ = e^{ln hₜ}</span> es <strong>estrictamente positiva por construcción</strong>: el modelo
+    elimina las restricciones de no negatividad sobre <span class="mono">(α₀, αᵢ, βⱼ)</span> durante la estimación
+    (Casas y Cepeda, 2008). Para la exposición y el laboratorio usamos el caso <span class="mono">(p, q) = (1, 1)</span>,
+    el estándar en la práctica aplicada:</p>
+
+  <div class="eqStage" id="eqStage"></div>
+  <div class="eqLegend" id="eqLegend">
+    <div class="lg" data-t="lnh"><b>ln hₜ</b>El objetivo: el logaritmo de la varianza condicional. Su rango es todo ℝ, por eso los parámetros pueden ser negativos sin riesgo de varianza negativa.</div>
+    <div class="lg" data-t="omega"><b>ω</b>Intercepto. Fija el nivel de largo plazo: la varianza incondicional es exp(ω / (1−β)).</div>
+    <div class="lg" data-t="beta"><b>β · ln hₜ₋₁</b>Persistencia. Qué fracción de la (log-)varianza de ayer sobrevive hoy. β cercano a 1 ⇒ la turbulencia tarda semanas en disiparse.</div>
+    <div class="lg" data-t="alpha"><b>α (|zₜ₋₁| − √(2/π))</b>Efecto magnitud. Reacción al <em>tamaño</em> del choque de ayer, sin importar el signo. Es la parte "ARCH" del modelo.</div>
+    <div class="lg" data-t="theta"><b>θ · zₜ₋₁</b>Efecto signo (asimetría). Si θ&lt;0, los choques negativos disparan más la volatilidad (acciones). Si θ&gt;0, la disparan los positivos (activos refugio).</div>
+    <div class="lg" data-t="z"><b>zₜ = εₜ/√hₜ</b>La innovación estandarizada: el choque medido en unidades de su propia volatilidad condicional.</div>
+  </div>
+
+  <p style="margin-top:1.8rem">Ambos efectos del choque se agrupan en la <strong>función de respuesta asimétrica</strong> de Nelson:</p>
+  <div class="eq disp" data-eq="g(z_t) = \underbrace{\theta\, z_t}_{\text{signo}} \;+\; \underbrace{\gamma\left(|z_t| - \mathbb{E}|z_t|\right)}_{\text{magnitud}}"></div>
+  <p>donde <span class="mono">E|z| = √(2/π)</span> bajo normalidad. La resta centra el efecto magnitud: solo los choques
+    <em>más grandes de lo esperado</em> suben la volatilidad. Es lineal por partes — con pendiente
+    <span class="mono">θ − γ</span> para <span style="color:var(--neg)">z&lt;0</span> y
+    <span class="mono">θ + γ</span> para <span style="color:var(--pos)">z&gt;0</span> — y de ahí nace toda la asimetría del modelo.</p>
+
+  <div class="panel">
+    <h3 style="font-size:1.02rem;color:var(--gold);margin-bottom:.6rem">Cuidado con la notación: Nelson vs. el software</h3>
+    <p style="font-size:.92rem">La literatura teórica y el paquete <span class="mono">arch</span> de Python nombran los mismos
+      efectos con letras distintas. La equivalencia exacta:</p>
+    <table class="params">
+      <thead><tr><th>Efecto</th><th>Nelson (1991) / ensayo</th><th>Paquete arch / notebook</th><th>Esta exposición</th></tr></thead>
+      <tbody>
+        <tr><td>Magnitud del choque, |z|−E|z|</td><td>γ</td><td>alpha[1]</td><td>α</td></tr>
+        <tr><td>Signo del choque (asimetría), z</td><td>θ</td><td>gamma[1]</td><td>θ</td></tr>
+        <tr><td>Persistencia, ln hₜ₋₁</td><td>βⱼ</td><td>beta[1]</td><td>β</td></tr>
+        <tr><td>Intercepto</td><td>α₀</td><td>omega</td><td>ω</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:.88rem;color:var(--muted);margin:0">Así, el <span class="mono">gamma[1] = 0.0418</span> del notebook
+      es el θ (asimetría) de Nelson, y el <span class="mono">alpha[1] = 0.1224</span> es su γ (magnitud). Confundirlos
+      invierte la interpretación económica del modelo.</p>
+  </div>
+
+  <h3 style="margin:2.2rem 0 .8rem;font-size:1.25rem">Propiedades formales que sostienen al modelo</h3>
+  <div class="grid3">
+    <div class="card"><h3>Positividad garantizada</h3>
+      <p>Sea cual sea el valor (positivo o negativo) de ω, α, θ, β, se cumple
+      <span class="mono">hₜ = exp(ln hₜ) &gt; 0</span>. La restricción que ARCH/GARCH imponen por fuerza,
+      EGARCH la obtiene por construcción.</p></div>
+    <div class="card"><h3>Estacionariedad</h3>
+      <p>Como ln hₜ sigue un AR(1) en logaritmos con innovación g(zₜ) de media cero, la condición de
+      estacionariedad (y ergodicidad, Nelson 1991) es simplemente <span class="mono">|β| &lt; 1</span> —
+      sin sumas de coeficientes que vigilar.</p></div>
+    <div class="card"><h3>Nivel de largo plazo</h3>
+      <p>Tomando esperanza en el estado estacionario: <span class="mono">E[ln hₜ] = ω/(1−β)</span>, de modo que la
+      varianza incondicional de referencia es <span class="mono">h̄ = exp(ω/(1−β))</span>. Con β→1, el nivel se vuelve
+      hipersensible a ω: raíz casi unitaria en la log-varianza.</p></div>
+  </div>
+  <div class="note">Rigor fino: <span class="mono">E|z| = √(2/π)</span> es el valor exacto bajo normalidad. Bajo la
+    t-Student estandarizada el valor teórico es
+    <span class="mono">E|z| = 2√(ν−2)·Γ((ν+1)/2) / (√π·(ν−1)·Γ(ν/2))</span>; sin embargo, la convención del paquete
+    <span class="mono">arch</span> (y de este laboratorio) mantiene la constante √(2/π), lo cual solo re-escala ω sin
+    afectar α, θ, β ni la dinámica — un detalle de implementación que conviene conocer al comparar software.</div>
+
+  <h3 style="margin:2.2rem 0 .8rem;font-size:1.25rem">Estimación: máxima verosimilitud con colas pesadas</h3>
+  <p>La no linealidad de la ecuación impide usar MCO. Los parámetros
+    <span class="mono">Θ = (μ, ω, α, θ, β, ν)</span> se obtienen maximizando la log-verosimilitud bajo una
+    <strong>t-Student estandarizada</strong> — la elección de colas gruesas no es opcional, es lo que impide que el modelo
+    "colapse" ante eventos extremos:</p>
+  <div class="eq disp" data-eq="\ell(\Theta)=\sum_{t=1}^{T}\left[\ln\Gamma\!\left(\tfrac{\nu+1}{2}\right)-\ln\Gamma\!\left(\tfrac{\nu}{2}\right)-\tfrac12\ln\!\big(\pi(\nu-2)\big)-\tfrac12\ln h_t-\tfrac{\nu+1}{2}\ln\!\left(1+\tfrac{z_t^{2}}{\nu-2}\right)\right]"></div>
+  <p>La no linealidad y la interacción de los componentes asimétricos hacen que la maximización sea numérica
+    (en el laboratorio de abajo: Nelder–Mead). La ausencia de restricciones de signo simplifica la computación y
+    favorece una convergencia estable ante colas gruesas (Casas y Cepeda, 2008). La selección entre especificaciones
+    rivales (órdenes p, q; GARCH vs. EGARCH) se decide con los <strong>criterios de información</strong>, que premian el
+    ajuste y penalizan la sobreparametrización:</p>
+  <div class="eq disp" data-eq="\mathrm{AIC} = 2k - 2\ell(\hat\Theta) \qquad\qquad \mathrm{BIC} = k\ln T - 2\ell(\hat\Theta)"></div>
+  <p>con <span class="mono">k</span> parámetros y <span class="mono">T</span> observaciones (menor es mejor; BIC castiga
+    más la complejidad). La validación final exige que los residuales estandarizados al cuadrado
+    <span class="mono">ẑₜ²</span> no conserven autocorrelación (<strong>Ljung–Box</strong>) — si la conservan, quedó
+    estructura ARCH sin modelar y la especificación debe revisarse — y que su distribución empírica se ajuste a la
+    t-Student supuesta (<strong>QQ-plot</strong>).</p>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S4: NIC INTERACTIVA ===================== -->
+<section id="s4" class="reveal">
+  <div class="eyebrow">04 · El corazón del modelo</div>
+  <h2>La curva de impacto de noticias, en tus manos</h2>
+  <p class="lead">Esta curva responde la pregunta central: <em>¿cuánto sube la volatilidad de mañana ante un choque
+    de tamaño z hoy?</em> En GARCH es una parábola simétrica. En EGARCH, θ la rompe.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label><span>θ · asimetría (signo)</span><b id="vTheta">+0.04</b></label>
+      <input type="range" id="rTheta" min="-0.35" max="0.35" step="0.005" value="0.042"></div>
+    <div class="ctrl"><label><span>α · magnitud</span><b id="vAlpha">0.12</b></label>
+      <input type="range" id="rAlpha" min="0" max="0.6" step="0.005" value="0.122"></div>
+  </div>
+  <div class="btnRow">
+    <span class="mono" style="font-size:.72rem;color:var(--muted)">PRESETS:</span>
+    <button class="chip" data-pre="stock">Acciones (θ = −0.12)</button>
+    <button class="chip on" data-pre="gold">Oro estimado (θ = +0.042)</button>
+    <button class="chip" data-pre="sym">GARCH simétrico (θ = 0)</button>
+  </div>
+
+  <canvas id="cvNIC" class="chart" height="340"></canvas>
+  <div class="chartCap">IMPACTO g(z) SOBRE ln hₜ₊₁ · <span style="color:#E0605D">zona roja: malas noticias (z&lt;0)</span> · <span style="color:#4CC2A8">zona verde: buenas noticias (z&gt;0)</span></div>
+
+  <div class="dual">
+    <div class="side neg"><h3>θ &lt; 0 — el mundo de las acciones</h3>
+      <p>El efecto apalancamiento de Black (1976): las caídas elevan el ratio deuda/capital y el riesgo percibido.
+      La rama izquierda de la curva es más empinada: el pánico pesa más que la euforia.</p></div>
+    <div class="side pos"><h3>θ &gt; 0 — el mundo de los refugios</h3>
+      <p>En el oro el signo se invierte: las crisis provocan <em>compras</em> masivas y subidas abruptas.
+      Son los choques positivos los que traen nerviosismo. El EGARCH detecta esto solo, desde los datos.</p></div>
+  </div>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S5: SIMULADOR ===================== -->
+<section id="s5" class="reveal">
+  <div class="eyebrow">05 · Intuición generativa</div>
+  <h2>Simulador: fabrica tu propio mercado</h2>
+  <p class="lead">La mejor prueba de que el modelo captura los hechos estilizados es <strong>generarlos</strong>.
+    Mueve los parámetros y observa cómo emergen (o desaparecen) el clustering y las colas pesadas.</p>
+
+  <div class="controls">
+    <div class="ctrl"><label><span>β · persistencia</span><b id="vB">0.985</b></label>
+      <input type="range" id="rB" min="0" max="0.998" step="0.002" value="0.984"></div>
+    <div class="ctrl"><label><span>α · magnitud</span><b id="vA">0.12</b></label>
+      <input type="range" id="rA" min="0" max="0.6" step="0.01" value="0.12"></div>
+    <div class="ctrl"><label><span>θ · asimetría</span><b id="vTh">0.04</b></label>
+      <input type="range" id="rTh" min="-0.3" max="0.3" step="0.01" value="0.04"></div>
+    <div class="ctrl"><label><span>ν · grados de libertad t</span><b id="vNu">5.7</b></label>
+      <input type="range" id="rNu" min="2.5" max="30" step="0.1" value="5.7"></div>
+  </div>
+  <div class="btnRow"><button class="btn" id="btnResim">Nueva simulación</button></div>
+
+  <canvas id="cvSimR" class="chart" height="240"></canvas>
+  <div class="chartCap">RETORNOS SIMULADOS (%) · 1500 días</div>
+  <canvas id="cvSimV" class="chart" height="180"></canvas>
+  <div class="chartCap">VOLATILIDAD CONDICIONAL √hₜ (%) · la "memoria" del proceso</div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Persistencia β</div><div class="v" id="stB">0.985</div><div class="d">Fracción de la log-varianza que sobrevive cada día</div></div>
+    <div class="stat"><div class="k">Vida media del choque</div><div class="v" id="stHL">–</div><div class="d">Días para que un choque de volatilidad se disipe a la mitad: ln(0.5)/ln(β)</div></div>
+    <div class="stat"><div class="k">Curtosis muestral</div><div class="v" id="stK">–</div><div class="d">Normal = 3. Más alto ⇒ colas más pesadas</div></div>
+  </div>
+  <div class="note">Sube β hacia 0.998 y verás episodios de turbulencia que no terminan nunca; bájalo a 0.3 y el
+    clustering desaparece. Baja ν hacia 2.5 y los picos extremos se multiplican. Los hechos estilizados no están
+    "pintados" — son consecuencia matemática de la recursión.</div>
+
+  <h3 style="margin:2.4rem 0 .8rem;font-size:1.25rem">Respuesta al impulso: la asimetría en movimiento</h3>
+  <p>El experimento definitivo: el mismo mercado en calma recibe un único choque de <span style="color:var(--neg)">−3σ</span>
+    y, en un universo paralelo, uno de <span style="color:var(--pos)">+3σ</span>. La trayectoria posterior de la volatilidad
+    es determinista — <span class="mono">Δln hₜ₊ₖ = βᵏ⁻¹·g(z₀)</span> — y la brecha entre ambas curvas <em>es</em> θ.
+    Con θ=0 las curvas coinciden: eso es GARCH.</p>
+  <div class="btnRow"><button class="btn" id="btnShock">Inyectar choques ±3σ</button>
+    <span class="status" id="stIRF"></span></div>
+  <canvas id="cvIRF" class="chart" height="260"></canvas>
+  <div class="chartCap">VOLATILIDAD CONDICIONAL TRAS UN CHOQUE ÚNICO EN t=0 · usa los parámetros de los deslizadores de arriba · la persistencia β gobierna cuánto tarda cada curva en volver al nivel de largo plazo</div>
+</section>
+
+<hr class="hr">
+<!-- ===================== S6: CASO ORO ===================== -->
+<section id="s6" class="reveal">
+  <div class="eyebrow">06 · Evidencia empírica</div>
+  <h2>Caso aplicado: EGARCH(1,1)-t sobre el oro (GLD)</h2>
+  <p class="lead">Resultados de la estimación por máxima verosimilitud sobre los retornos diarios del ETF de oro
+    desde 2015 (el procedimiento completo — prueba ARCH de Engle, estimación, diagnóstico Ljung–Box y QQ-plots —
+    está en el notebook adjunto).</p>
+
+  <p>Antes de estimar cualquier modelo de varianza hay que <strong>probar que hace falta</strong>: se ajustó primero
+    un AR(1) en la media y sobre sus residuales se aplicó la prueba <strong>ARCH-LM de Engle con 5 rezagos</strong>
+    (una semana bursátil). El p-valor resultó inferior al 5%, rechazando la hipótesis nula de varianza constante:
+    los retornos del oro presentan heterocedasticidad condicional y el modelo de volatilidad está justificado.
+    La estimación por máxima verosimilitud del EGARCH(1,1) con distribución t arroja:</p>
+
+  <div class="stats">
+    <div class="stat"><div class="k">μ · retorno medio</div><div class="v">0.048%</div><div class="d">Diario, significativo: leve deriva alcista de largo plazo</div></div>
+    <div class="stat"><div class="k">α · magnitud</div><div class="v">0.122</div><div class="d">Reacción fuerte y significativa a las noticias de ayer</div></div>
+    <div class="stat"><div class="k">θ · asimetría</div><div class="v" style="color:var(--pos)">+0.042</div><div class="d">Positivo: en el oro, las buenas noticias agitan más que las malas</div></div>
+    <div class="stat"><div class="k">β · persistencia</div><div class="v">0.985</div><div class="d">Vida media del choque ≈ 45 días: la turbulencia dura semanas</div></div>
+    <div class="stat"><div class="k">ν · colas</div><div class="v">5.70</div><div class="d">Muy lejos de la Normal (ν→∞): colas pesadas confirmadas</div></div>
+    <div class="stat"><div class="k">Ljung–Box (z², lag 10)</div><div class="v">p = 0.064</div><div class="d">No quedan efectos ARCH remanentes: especificación validada</div></div>
+  </div>
+
+  <div class="panel">
+    <h3 style="font-size:1.02rem;color:var(--gold);margin-bottom:.6rem">Diagnóstico de la especificación</h3>
+    <p style="font-size:.93rem"><strong>Ljung–Box sobre ẑₜ² (rezago 10):</strong> p = 0.064 &gt; 0.05 → no se rechaza la
+      ausencia de autocorrelación en los residuales estandarizados al cuadrado. El EGARCH(1,1) "limpió" toda la
+      aglomeración de volatilidad; los rezagos p = q = 1 quedan validados.</p>
+    <p style="font-size:.93rem"><strong>QQ-plot:</strong> contra la Normal, los residuales muestran la clásica desviación
+      en "S" en los extremos; contra la <strong>t-Student con ν̂ = 5.70</strong>, los puntos se alinean sobre la recta de
+      45° y la desviación de colas desaparece casi por completo — los eventos extremos ya no "sorprenden" al modelo.</p>
+    <p style="font-size:.93rem;margin:0"><strong>Coherencia interna:</strong> una t con ν = 5.70 implica una curtosis
+      teórica de <span class="mono">3(ν−2)/(ν−4) ≈ 6.5</span>, muy por encima del 3 de la Normal — exactamente el orden
+      de magnitud de la curtosis muestral de los retornos. El supuesto distribucional no es un capricho: es lo que los
+      datos exigen.</p>
+  </div>
+
+  <div class="interp"><b>La lectura que importa:</b> el signo de θ es la firma econométrica del oro como
+    <b>activo refugio</b>. En un índice accionario θ suele ser negativo (efecto apalancamiento clásico: las caídas
+    generan pánico). Aquí es positivo y significativo: en crisis, guerras o sorpresas inflacionarias los inversores
+    <em>corren hacia</em> el oro, y son esas subidas abruptas las que elevan la volatilidad. El mismo modelo,
+    aplicado a activos distintos, revela estructuras de mercado opuestas — esa es su potencia diagnóstica.</div>
+
+  <h3 style="margin:2rem 0 .8rem;font-size:1.25rem">Pronóstico: por qué Monte Carlo y no una fórmula</h3>
+  <p>En un GARCH estándar la varianza futura tiene fórmula analítica exacta. En EGARCH no: el modelo vive en
+    logaritmos y, por la <strong>desigualdad de Jensen</strong>,
+    <span class="mono">E[exp(ln h)] ≠ exp(E[ln h])</span> — pronosticar "despejando" el logaritmo produce sesgo.
+    La salida correcta es simular miles de trayectorias futuras con la t-Student estimada y promediarlas:</p>
+
+  <canvas id="cvGoldFan" class="chart" height="340"></canvas>
+  <div class="chartCap">ABANICO DE PRONÓSTICO A 30 DÍAS · retornos simulados (bandas 5–95% y 25–75%) + volatilidad esperada, generado en tu navegador con los parámetros estimados</div>
+  <div class="btnRow"><button class="btn" id="btnGoldFan">Re-simular abanico</button><span class="status" id="stGold"></span></div>
+
+
+  <h3 style="margin:2rem 0 .6rem;font-size:1.25rem">Del abanico al riesgo: Value-at-Risk y Expected Shortfall</h3>
+  <p>Aquí el modelo deja de ser académico: las mismas 2 000 sendas del pronóstico contienen la distribución completa
+    de pérdidas posibles. Los cuantiles de esa distribución son, por definición, el <strong>VaR</strong>; el promedio de
+    las pérdidas que lo exceden es el <strong>Expected Shortfall</strong> — los insumos estándar de la gestión de riesgo
+    y la regulación bancaria.</p>
+  <div class="stats" id="goldVaR"></div>
+
+  <h3 style="margin:2.2rem 0 .8rem;font-size:1.25rem">La distribución predictiva, partícula a partícula</h3>
+  <p>Cada partícula que cae es un escenario del retorno de mañana, sorteado de la t-Student estimada con la
+    volatilidad condicional de hoy. La pila que se forma <em>es</em> la distribución predictiva — y el VaR no es una
+    fórmula abstracta: es el punto exacto donde queda el percentil 5 de esta lluvia. Los escenarios que caen más allá
+    se pintan de rojo: ese es el territorio del Expected Shortfall.</p>
+  <div class="btnRow"><button class="btn primary" id="btnParticles">Lanzar 800 escenarios</button>
+    <span class="status" id="stPart"></span></div>
+  <canvas id="cvPart" class="chart" height="340"></canvas>
+  <div class="chartCap">SIMULACIÓN DE MONTE CARLO EN VIVO · retorno a 1 día del oro · líneas: VaR 95% y 99% empíricos, emergiendo de las propias partículas · curva: densidad t-Student teórica</div>
+  <div class="note">La volatilidad proyectada arranca en ≈1.40% diario y desciende lentamente hacia ≈1.27% en el día 30:
+    el último tramo de la muestra estaba más turbulento que el promedio histórico, y con β=0.985 el "enfriamiento"
+    es gradual — la reversión a la media de la varianza existe, pero es lenta.</div>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S7: LAB EN VIVO ===================== -->
+<section id="s7" class="reveal">
+  <div class="eyebrow">07 · Laboratorio en tiempo real</div>
+  <h2>Estima un EGARCH ahora mismo, sobre datos de mercado en vivo</h2>
+  <p class="lead">Este laboratorio descarga los últimos 1 000 días del activo que elijas (API pública de Binance),
+    estima el EGARCH(1,1)-t <strong>por máxima verosimilitud aquí, en tu navegador</strong> (Nelder–Mead sobre la
+    log-verosimilitud), y proyecta la volatilidad a 30 días por Monte Carlo. Sin servidor, sin Python: solo la matemática.</p>
+
+  <div class="btnRow">
+    <select id="selAsset" aria-label="Activo">
+      <option value="BTCUSDT">Bitcoin · BTC/USDT</option>
+      <option value="ETHUSDT">Ethereum · ETH/USDT</option>
+      <option value="SOLUSDT">Solana · SOL/USDT</option>
+      <option value="BNBUSDT">BNB · BNB/USDT</option>
+      <option value="XRPUSDT">XRP · XRP/USDT</option>
+      <option value="PAXGUSDT">Oro tokenizado · PAXG/USDT</option>
+    </select>
+    <button class="btn primary" id="btnLive">Descargar y estimar</button>
+    <span class="status" id="stLive">Requiere conexión a internet.</span>
+  </div>
+
+  <div id="liveOut" style="display:none">
+    <canvas id="cvLiveR" class="chart" height="220"></canvas>
+    <div class="chartCap" id="capLiveR">RETORNOS DIARIOS (%)</div>
+
+    <h3 style="margin:1.4rem 0 .4rem;font-size:1.15rem">Parámetros estimados (máxima verosimilitud, t-Student)</h3>
+    <table class="params"><thead><tr><th>Parámetro</th><th>Estimación</th><th>Error est.</th><th>t</th><th>p-valor</th><th></th></tr></thead>
+    <tbody id="tbParams"></tbody></table>
+    <div class="interp" id="liveInterp"></div>
+
+
+
+    <h3 style="margin:1.6rem 0 .4rem;font-size:1.15rem">La optimización, en vivo</h3>
+    <p style="font-size:.93rem">La estimación no es una caja negra: esta es la trayectoria real que el algoritmo
+      Nelder–Mead acaba de recorrer sobre la función objetivo <span class="mono">−ℓ(Θ)</span> hasta encontrar
+      el máximo de verosimilitud.</p>
+    <canvas id="cvLiveConv" class="chart" height="190"></canvas>
+    <div class="chartCap">CONVERGENCIA DEL ESTIMADOR · función objetivo por iteración · el tramo plano final indica que el óptimo es estable</div>
+    <h3 style="margin:1.6rem 0 .4rem;font-size:1.15rem">Diagnóstico y prueba de asimetría, calculados en vivo</h3>
+    <p style="font-size:.93rem">Para cada activo se estima también el modelo restringido con θ=0 (EGARCH simétrico).
+      Al estar anidados, la razón de verosimilitud <span class="mono">LR = 2(ℓ − ℓ₀) ~ χ²(1)</span> responde
+      formalmente: <em>¿la asimetría es estadísticamente necesaria?</em></p>
+    <div class="stats" id="liveDiag"></div>
+
+    <p style="font-size:.93rem;margin-top:1.2rem">La misma prueba, vista como geografía: la superficie de
+      <strong>verosimilitud relativa</strong> <span class="mono">exp(ℓ−ℓ̂)</span> en el plano (θ, β), con las demás
+      dimensiones fijas en el óptimo. El contorno delimita la región de confianza conjunta del 95%
+      (<span class="mono">Δℓ ≥ −χ²₀.₉₅(2)/2</span>). Si la línea θ=0 cruza por fuera de la región, la asimetría es
+      significativa — es la prueba LR hecha imagen.</p>
+    <canvas id="cvLiveSurf" class="chart" height="320"></canvas>
+    <div class="chartCap">SUPERFICIE DE VEROSIMILITUD RELATIVA EN (θ, β) · cruz: estimador MV · línea vertical: hipótesis θ=0 · contorno claro: región de confianza 95%</div>
+    <canvas id="cvLiveV" class="chart" height="200"></canvas>
+    <div class="chartCap">VOLATILIDAD CONDICIONAL ESTIMADA √hₜ (%) · la historia del riesgo del activo</div>
+
+    <h3 style="margin:1.8rem 0 .4rem;font-size:1.15rem">Backtesting: el VaR del modelo contra la historia real</h3>
+    <p style="font-size:.93rem">La auditoría definitiva. Con los parámetros estimados se reconstruye el VaR al 95%
+      de <em>cada día</em> de la muestra — <span class="mono">VaRₜ = −(μ + q₀.₀₅·√hₜ)</span>, con q₀.₀₅ el cuantil
+      exacto de la t-Student estandarizada — y se cuentan las violaciones observadas. La <strong>prueba de Kupiec</strong>
+      (cobertura incondicional, LR ~ χ²(1)) dictamina si la frecuencia de violaciones es compatible con el 5% prometido.</p>
+    <canvas id="cvLiveBT" class="chart" height="250"></canvas>
+    <div class="chartCap">RETORNOS DIARIOS VS. FRONTERA VaR 95% DEL MODELO · los puntos marcan las violaciones (pérdidas que excedieron el VaR)</div>
+    <div class="stats" id="liveBT"></div>
+
+    <h3 style="margin:1.6rem 0 .4rem;font-size:1.15rem">Validación visual: el antes y el después del modelo</h3>
+    <p style="font-size:.93rem">Izquierda: la ACF de r² muestra la estructura de volatilidad que había en los datos;
+      la de ẑ² muestra lo que queda tras filtrar con el EGARCH — si el modelo es correcto, debe quedar ruido.
+      Derecha: los cuantiles de los residuales contra la t-Student estimada; sobre la diagonal, el supuesto
+      distribucional queda validado.</p>
+    <div class="grid2">
+      <div><canvas id="cvLiveACF" class="chart" height="250"></canvas>
+        <div class="chartCap">ACF DE r² (ANTES) VS ẑ² (DESPUÉS) · REZAGOS 1–20 · ES LA VERSIÓN VISUAL DEL LJUNG–BOX</div></div>
+      <div><canvas id="cvLiveQQ" class="chart" height="250"></canvas>
+        <div class="chartCap">QQ-PLOT · CUANTILES DE ẑ VS T-STUDENT(ν̂) ESTANDARIZADA</div></div>
+    </div>
+
+    <canvas id="cvLiveFan" class="chart" height="340"></canvas>
+    <div class="chartCap">PRONÓSTICO MONTE CARLO A 30 DÍAS · 2 000 sendas con la t-Student estimada</div>
+
+    <div class="stats" id="liveVaR"></div>
+  </div>
+
+  <div class="note warn"><strong>Nota de rigor:</strong> los errores estándar se calculan con el Hessiano numérico
+    (aproximación local); en colas muy pesadas conviene contrastarlos con errores robustos (Bollerslev–Wooldridge).
+    Y como todo modelo de volatilidad: pronostica <em>riesgo</em>, no dirección — nada aquí es una recomendación de inversión.</div>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S8: LÍMITES ===================== -->
+<section id="s8" class="reveal">
+  <div class="eyebrow">08 · Juicio crítico</div>
+  <h2>Cuándo usarlo, cuándo no, y qué no puede hacer</h2>
+  <div class="grid2">
+    <div class="panel"><h3 style="color:var(--pos);font-size:1.05rem;margin-bottom:.7rem">Úsalo cuando…</h3>
+      <ul class="useList">
+        <li>La prueba ARCH-LM rechaza homocedasticidad: hay estructura en la varianza que modelar.</li>
+        <li>Sospechas asimetría (acciones, índices, refugios): θ te la mide y te dice su dirección.</li>
+        <li>Necesitas insumos de riesgo: Value-at-Risk, Expected Shortfall, valoración de opciones, límites de exposición.</li>
+        <li>Los datos tienen colas gruesas y un GARCH gaussiano falla en el diagnóstico de residuales.</li>
+        <li>El optimizador de un GARCH estándar choca contra las restricciones de no negatividad.</li>
+      </ul></div>
+    <div class="panel"><h3 style="color:var(--neg);font-size:1.05rem;margin-bottom:.7rem">Sus límites…</h3>
+      <ul class="useList no">
+        <li>No pronostica la dirección del precio: la media condicional sigue siendo (casi) ruido blanco.</li>
+        <li>El pronóstico multi-paso no tiene forma cerrada (Jensen): exige simulación, con costo computacional.</li>
+        <li>Es univariado: no captura contagio ni correlaciones dinámicas entre activos (para eso: DCC, GO-GARCH).</li>
+        <li>Asume parámetros constantes: cambios estructurales (regímenes) lo degradan — alternativas: Markov-Switching GARCH.</li>
+        <li>Sensible a la elección de distribución; con ν mal especificado, el VaR de cola se distorsiona.</li>
+      </ul></div>
+  </div>
+  <div class="note">Frontera actual: especificaciones rivales de asimetría (GJR-GARCH, APARCH), volatilidad realizada
+    con datos intradía (HAR-RV), y modelos híbridos de aprendizaje automático — incluidas redes Kolmogorov–Arnold
+    (KAN-GARCH) — que intentan capturar no linealidades fuera del alcance paramétrico del EGARCH. Ninguno elimina la
+    lección de Nelson: el riesgo es persistente, asimétrico y de colas pesadas.</div>
+</section>
+
+<hr class="hr">
+
+<!-- ===================== S9: CONCLUSIONES ===================== -->
+<section id="s9" class="reveal">
+  <div class="eyebrow">09 · Síntesis</div>
+  <h2>Conclusiones</h2>
+  <p class="lead">Tres ideas se llevan todo el peso de esta exposición:</p>
+  <div class="grid3">
+    <div class="card"><h3>1 · El logaritmo no es un truco</h3><p>Modelar ln(h) libera la optimización de restricciones de signo y garantiza varianza positiva por construcción. Es el mecanismo que habilita todo lo demás.</p></div>
+    <div class="card"><h3>2 · La asimetría es medible</h3><p>θ convierte una intuición de mercado (el pánico pesa más que la euforia; o al revés, en los refugios) en un parámetro estimable, con signo, magnitud y significancia.</p></div>
+    <div class="card"><h3>3 · El riesgo se pronostica; el retorno, no</h3><p>La media condicional es casi impredecible, pero la varianza tiene memoria explotable. Cuantificar la incertidumbre es el producto final del modelo.</p></div>
+  </div>
+
+  <div class="refs" style="margin-top:2.6rem">
+    <h3 style="font-size:1.15rem;margin-bottom:1rem">Referencias bibliográficas</h3>
+    <p>Black, F. (1976). Studies of stock price volatility changes. <em>Proceedings of the 1976 Meetings of the American Statistical Association, Business and Economic Statistics Section</em>, 177–181.</p>
+    <p>Bollerslev, T. (1986). Generalized autoregressive conditional heteroskedasticity. <em>Journal of Econometrics, 31</em>(3), 307–327. https://doi.org/10.1016/0304-4076(86)90063-1</p>
+    <p>Casas Monsegny, M., & Cepeda Cuervo, E. (2008). Modelos ARCH, GARCH y EGARCH: aplicaciones a series financieras. <em>Cuadernos de Economía, 27</em>(48), 287–319.</p>
+    <p>Engle, R. F. (1982). Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation. <em>Econometrica, 50</em>(4), 987–1007. https://doi.org/10.2307/1912773</p>
+    <p>Fernández Castaño, H. (2010). EGARCH: un modelo asimétrico para estimar la volatilidad de series financieras. <em>Revista Ingenierías Universidad de Medellín, 9</em>(16), 49–60.</p>
+    <p>Nelson, D. B. (1991). Conditional heteroskedasticity in asset returns: A new approach. <em>Econometrica, 59</em>(2), 347–370. https://doi.org/10.2307/2938260</p>
+    <p>Pagan, A. R., & Schwert, G. W. (1990). Alternative models for conditional stock volatility. <em>Journal of Econometrics, 45</em>(1–2), 267–290. https://doi.org/10.1016/0304-4076(90)90101-E</p>
+  </div>
+</section>
+
+<footer>EGARCH LAB · ECONOMETRÍA FINANCIERA · 2026 — ESTIMACIÓN Y SIMULACIÓN EJECUTADAS ÍNTEGRAMENTE EN EL NAVEGADOR · NAVEGACIÓN ENTRE SECCIONES: TECLAS ← →</footer>
+<script>
+'use strict';
+/* ================= EGARCH LAB · MOTOR NUMÉRICO =================
+   Parametrización (paquete `arch` de Python):
+   ln h_t = ω + α(|z_{t-1}| − √(2/π)) + θ·z_{t-1} + β·ln h_{t-1}
+   z_t = (r_t − μ)/√h_t ,  z ~ t-Student estandarizada (ν)          */
+
+const SQ2PI = Math.sqrt(2 / Math.PI);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ---------- aleatorios ---------- */
+let _spare = null;
+function randn() {
+  if (_spare !== null) { const s = _spare; _spare = null; return s; }
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  v = Math.random();
+  const m = Math.sqrt(-2 * Math.log(u));
+  _spare = m * Math.sin(2 * Math.PI * v);
+  return m * Math.cos(2 * Math.PI * v);
+}
+/* Gamma(shape,1) — Marsaglia & Tsang (shape >= 1 aquí, ν/2 > 1) */
+function randGamma(shape) {
+  if (shape < 1) return randGamma(shape + 1) * Math.pow(Math.random(), 1 / shape);
+  const d = shape - 1 / 3, c = 1 / Math.sqrt(9 * d);
+  for (;;) {
+    let x, v;
+    do { x = randn(); v = 1 + c * x; } while (v <= 0);
+    v = v * v * v;
+    const u = Math.random();
+    if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+    if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+  }
+}
+/* t-Student estandarizada (varianza 1) */
+function randT(nu) {
+  const chi2 = 2 * randGamma(nu / 2);
+  return (randn() / Math.sqrt(chi2 / nu)) * Math.sqrt((nu - 2) / nu);
+}
+
+/* ---------- funciones especiales ---------- */
+function gammaln(x) { // Lanczos
+  const g = [676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+    9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - gammaln(1 - x);
+  x -= 1;
+  let a = 0.99999999999980993;
+  const t = x + 7.5;
+  for (let i = 0; i < 8; i++) a += g[i] / (x + i + 1);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+
+function gammp(a, x) { // P(a,x): gamma incompleta inferior regularizada
+  if (x <= 0) return 0;
+  if (x < a + 1) {
+    let ap = a, sum = 1 / a, del = sum;
+    for (let n = 0; n < 300; n++) { ap++; del *= x / ap; sum += del; if (Math.abs(del) < Math.abs(sum) * 1e-13) break; }
+    return sum * Math.exp(-x + a * Math.log(x) - gammaln(a));
+  }
+  let b = x + 1 - a, c = 1e300, d = 1 / b, h = d;
+  for (let i = 1; i < 300; i++) {
+    const an = -i * (i - a);
+    b += 2; d = an * d + b; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = b + an / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; const del = d * c; h *= del;
+    if (Math.abs(del - 1) < 1e-13) break;
+  }
+  return 1 - Math.exp(-x + a * Math.log(x) - gammaln(a)) * h;
+}
+
+function betacf(a, b, x) {
+  let qab = a + b, qap = a + 1, qam = a - 1;
+  let c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < 1e-300) d = 1e-300;
+  d = 1 / d; let h = d;
+  for (let m = 1; m <= 300; m++) {
+    const m2 = 2 * m;
+    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; const del = d * c; h *= del;
+    if (Math.abs(del - 1) < 1e-12) break;
+  }
+  return h;
+}
+function betai(a, b, x) {
+  if (x <= 0) return 0; if (x >= 1) return 1;
+  const bt = Math.exp(gammaln(a + b) - gammaln(a) - gammaln(b) + a * Math.log(x) + b * Math.log(1 - x));
+  return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
+}
+function tCdf(t, nu) {
+  const p = 0.5 * betai(nu / 2, 0.5, nu / (nu + t * t));
+  return t > 0 ? 1 - p : p;
+}
+function tInv(p, nu) { // bisección sobre la CDF
+  let lo = -80, hi = 80;
+  for (let i = 0; i < 120; i++) {
+    const mid = (lo + hi) / 2;
+    (tCdf(mid, nu) < p) ? (lo = mid) : (hi = mid);
+  }
+  return (lo + hi) / 2;
+}
+/* cuantil de la t ESTANDARIZADA (varianza 1) — la de nuestros z */
+const tInvStd = (p, nu) => tInv(p, nu) * Math.sqrt((nu - 2) / nu);
+/* función de autocorrelación */
+function acfFn(x, maxLag) {
+  const n = x.length, mu = mean(x), xc = x.map(v => v - mu);
+  let den = 0; for (const v of xc) den += v * v;
+  const out = [];
+  for (let k = 1; k <= maxLag; k++) {
+    let num = 0;
+    for (let t = k; t < n; t++) num += xc[t] * xc[t - k];
+    out.push(num / den);
+  }
+  return out;
+}
+const chi2cdf = (x, k) => gammp(k / 2, x / 2);
+function ljungBox(x, m) {
+  const n = x.length, mu = mean(x);
+  const xc = x.map(v => v - mu);
+  let den = 0; for (const v of xc) den += v * v;
+  let Q = 0;
+  for (let k = 1; k <= m; k++) {
+    let num = 0;
+    for (let t = k; t < n; t++) num += xc[t] * xc[t - k];
+    const rho = num / den;
+    Q += rho * rho / (n - k);
+  }
+  Q *= n * (n + 2);
+  return { Q, p: 1 - chi2cdf(Q, m) };
+}
+
+function betacf(a, b, x) {
+  let qab = a + b, qap = a + 1, qam = a - 1;
+  let c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < 1e-300) d = 1e-300;
+  d = 1 / d; let h = d;
+  for (let m = 1; m <= 300; m++) {
+    const m2 = 2 * m;
+    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; const del = d * c; h *= del;
+    if (Math.abs(del - 1) < 1e-13) break;
+  }
+  return h;
+}
+function betainc(a, b, x) { // I_x(a,b) regularizada
+  if (x <= 0) return 0; if (x >= 1) return 1;
+  const bt = Math.exp(gammaln(a + b) - gammaln(a) - gammaln(b) + a * Math.log(x) + b * Math.log(1 - x));
+  return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
+}
+function tCdf(x, nu) {
+  const p = 0.5 * betainc(nu / 2, 0.5, nu / (nu + x * x));
+  return x > 0 ? 1 - p : p;
+}
+function tQuantileStd(pr, nu) { // cuantil de la t ESTANDARIZADA (varianza 1)
+  let lo = -60, hi = 60;
+  for (let i = 0; i < 200; i++) { const mid = (lo + hi) / 2; if (tCdf(mid, nu) < pr) lo = mid; else hi = mid; }
+  return ((lo + hi) / 2) * Math.sqrt((nu - 2) / nu);
+}
+function kupiec(x, n, p) { // prueba de cobertura incondicional
+  const ph = Math.min(Math.max(x / n, 1e-10), 1 - 1e-10);
+  const l0 = (n - x) * Math.log(1 - p) + x * Math.log(p);
+  const l1 = (n - x) * Math.log(1 - ph) + x * Math.log(ph);
+  const LR = Math.max(-2 * (l0 - l1), 0);
+  return { LR, p: 1 - chi2cdf(LR, 1) };
+}
+const normCdf = x => 0.5 * (1 + erf(x / Math.SQRT2));
+function erf(x) {
+  const s = x < 0 ? -1 : 1; x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return s * y;
+}
+
+/* ---------- estadísticos ---------- */
+const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
+function variance(a) { const m = mean(a); return a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1); }
+function kurtosis(a) {
+  const m = mean(a), n = a.length;
+  let m2 = 0, m4 = 0;
+  for (const x of a) { const d = x - m; m2 += d * d; m4 += d * d * d * d; }
+  m2 /= n; m4 /= n;
+  return m4 / (m2 * m2);
+}
+function percentile(sorted, p) {
+  const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+}
+
+
+function acf(x, maxLag) {
+  const n = x.length, m = mean(x);
+  const xc = x.map(v => v - m);
+  let den = 0; for (const v of xc) den += v * v;
+  const out = [];
+  for (let k = 1; k <= maxLag; k++) {
+    let num = 0;
+    for (let t = k; t < n; t++) num += xc[t] * xc[t - k];
+    out.push(num / den);
+  }
+  return out;
+}
+/* ---------- filtro EGARCH y verosimilitud ---------- */
+function egarchFilter(r, th) { // th = {mu,omega,alpha,theta,beta}
+  const n = r.length, lnh = new Float64Array(n), z = new Float64Array(n);
+  const v0 = Math.max(variance(r), 1e-10);
+  let prev = Math.log(v0), zPrev = 0;
+  for (let t = 0; t < n; t++) {
+    const lh = t === 0 ? prev
+      : th.omega + th.alpha * (Math.abs(zPrev) - SQ2PI) + th.theta * zPrev + th.beta * prev;
+    lnh[t] = Math.min(Math.max(lh, -30), 30);
+    z[t] = (r[t] - th.mu) / Math.exp(lnh[t] / 2);
+    prev = lnh[t]; zPrev = z[t];
+  }
+  return { lnh, z };
+}
+function negLogLik(r, th) {
+  if (th.beta <= -0.9999 || th.beta >= 0.9999 || th.nu <= 2.05) return 1e12;
+  const { lnh, z } = egarchFilter(r, th);
+  const nu = th.nu;
+  const c = gammaln((nu + 1) / 2) - gammaln(nu / 2) - 0.5 * Math.log(Math.PI * (nu - 2));
+  let ll = 0;
+  for (let t = 0; t < r.length; t++) {
+    ll += c - 0.5 * lnh[t] - ((nu + 1) / 2) * Math.log(1 + (z[t] * z[t]) / (nu - 2));
+    if (!isFinite(ll)) return 1e12;
+  }
+  return -ll;
+}
+/* transformación libre <-> natural */
+const sig = x => 1 / (1 + Math.exp(-x));
+const logit = p => Math.log(p / (1 - p));
+function toNatural(v) {
+  return { mu: v[0], omega: v[1], alpha: v[2], theta: v[3],
+    beta: 0.9998 * (2 * sig(v[4]) - 1), nu: 2.1 + 60 * sig(v[5]) };
+}
+function toNaturalR(v) {
+  return { mu: v[0], omega: v[1], alpha: v[2], theta: 0,
+    beta: 0.9998 * (2 * sig(v[3]) - 1), nu: 2.1 + 60 * sig(v[4]) };
+}
+function objective(r, restrict) {
+  return restrict ? (v => negLogLik(r, toNaturalR(v))) : (v => negLogLik(r, toNatural(v)));
+}
+
+/* ---------- Nelder–Mead ---------- */
+function nelderMead(f, x0, opts = {}) {
+  const n = x0.length, maxIter = opts.maxIter || 2500, tol = opts.tol || 1e-9;
+  const trace = [];
+  const step = opts.step || 0.15;
+  let simplex = [x0.slice()];
+  for (let i = 0; i < n; i++) { const p = x0.slice(); p[i] += (p[i] !== 0 ? Math.abs(p[i]) : 1) * step; simplex.push(p); }
+  let fx = simplex.map(f);
+  for (let it = 0; it < maxIter; it++) {
+    const idx = fx.map((v, i) => i).sort((a, b) => fx[a] - fx[b]);
+    simplex = idx.map(i => simplex[i]); fx = idx.map(i => fx[i]);
+    trace.push(fx[0]);
+    if (Math.abs(fx[n] - fx[0]) < tol * (Math.abs(fx[0]) + tol)) break;
+    const cen = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cen[j] += simplex[i][j] / n;
+    const worst = simplex[n];
+    const refl = cen.map((c, j) => c + (c - worst[j])); const fr = f(refl);
+    if (fr < fx[0]) {
+      const exp_ = cen.map((c, j) => c + 2 * (c - worst[j])); const fe = f(exp_);
+      if (fe < fr) { simplex[n] = exp_; fx[n] = fe; } else { simplex[n] = refl; fx[n] = fr; }
+    } else if (fr < fx[n - 1]) { simplex[n] = refl; fx[n] = fr; }
+    else {
+      const con = cen.map((c, j) => c + 0.5 * (worst[j] - c)); const fc = f(con);
+      if (fc < fx[n]) { simplex[n] = con; fx[n] = fc; }
+      else for (let i = 1; i <= n; i++) { simplex[i] = simplex[i].map((v, j) => simplex[0][j] + 0.5 * (v - simplex[0][j])); fx[i] = f(simplex[i]); }
+    }
+  }
+  const best = fx.indexOf(Math.min(...fx));
+  return { x: simplex[best], f: fx[best], trace };
+}
+
+/* ---------- estimación completa + errores estándar ---------- */
+function estimateEGARCH(r, restrictTheta) {
+  const m = mean(r), v = variance(r);
+  const bInit = logit((0.96 + 1) / 2 / 0.9998 + 0.0001), nInit = logit((8 - 2.1) / 60);
+  const x0 = restrictTheta
+    ? [m, 0.02 * Math.log(Math.max(v, 1e-8)), 0.10, bInit, nInit]
+    : [m, 0.02 * Math.log(Math.max(v, 1e-8)), 0.10, 0.0, bInit, nInit];
+  const f = objective(r, restrictTheta);
+  const res1 = nelderMead(f, x0, { maxIter: 3000 });
+  let res = nelderMead(f, res1.x, { maxIter: 1500, step: 0.05 }); // pulido
+  const trace = res1.trace.concat(res.trace);
+  const th = restrictTheta ? toNaturalR(res.x) : toNatural(res.x);
+  const ll = -res.f;
+  const k = restrictTheta ? 5 : 6, n = r.length;
+  const aic = 2 * k - 2 * ll, bic = k * Math.log(n) - 2 * ll;
+  const se = restrictTheta ? null : stdErrors(r, th);
+  return { th, ll, aic, bic, se, k, trace, filter: egarchFilter(r, th) };
+}
+function stdErrors(r, th) {
+  const names = ['mu', 'omega', 'alpha', 'theta', 'beta', 'nu'];
+  const p0 = names.map(k => th[k]);
+  const f = p => { const o = {}; names.forEach((k, i) => o[k] = p[i]); return negLogLik(r, o); };
+  const n = 6, H = Array.from({ length: n }, () => new Array(n).fill(0));
+  const h = p0.map(v => Math.max(Math.abs(v), 0.02) * 1e-3 + 1e-6);
+  const f0 = f(p0);
+  for (let i = 0; i < n; i++) for (let j = i; j < n; j++) {
+    const pi = p0.slice(), pj = p0.slice(), pij = p0.slice(), pmi = p0.slice(), pmj = p0.slice(), pmij = p0.slice();
+    if (i === j) {
+      pi[i] += h[i]; pmi[i] -= h[i];
+      H[i][i] = (f(pi) - 2 * f0 + f(pmi)) / (h[i] * h[i]);
+    } else {
+      pij[i] += h[i]; pij[j] += h[j];
+      pi[i] += h[i]; pi[j] -= h[j];
+      pj[i] -= h[i]; pj[j] += h[j];
+      pmij[i] -= h[i]; pmij[j] -= h[j];
+      H[i][j] = H[j][i] = (f(pij) - f(pi) - f(pj) + f(pmij)) / (4 * h[i] * h[j]);
+    }
+  }
+  const inv = matInv(H);
+  if (!inv) return null;
+  const se = {};
+  names.forEach((k, i) => { se[k] = inv[i][i] > 0 ? Math.sqrt(inv[i][i]) : NaN; });
+  return se;
+}
+function matInv(A) {
+  const n = A.length, M = A.map((row, i) => [...row, ...row.map((_, j) => (i === j ? 1 : 0))]);
+  for (let c = 0; c < n; c++) {
+    let piv = c;
+    for (let r2 = c + 1; r2 < n; r2++) if (Math.abs(M[r2][c]) > Math.abs(M[piv][c])) piv = r2;
+    if (Math.abs(M[piv][c]) < 1e-12) return null;
+    [M[c], M[piv]] = [M[piv], M[c]];
+    const d = M[c][c];
+    for (let j = 0; j < 2 * n; j++) M[c][j] /= d;
+    for (let r2 = 0; r2 < n; r2++) if (r2 !== c) {
+      const fct = M[r2][c];
+      for (let j = 0; j < 2 * n; j++) M[r2][j] -= fct * M[c][j];
+    }
+  }
+  return M.map(row => row.slice(n));
+}
+
+/* ---------- simulación y pronóstico ---------- */
+function egarchSimulate(nDays, th, lnh0) {
+  const r = new Float64Array(nDays), vol = new Float64Array(nDays);
+  let lnh = lnh0 !== undefined ? lnh0 : th.omega / (1 - th.beta), zPrev = 0;
+  for (let t = 0; t < nDays; t++) {
+    lnh = th.omega + th.alpha * (Math.abs(zPrev) - SQ2PI) + th.theta * zPrev + th.beta * lnh;
+    lnh = Math.min(Math.max(lnh, -30), 30);
+    const s = Math.exp(lnh / 2);
+    const z = randT(th.nu);
+    r[t] = th.mu + s * z; vol[t] = s; zPrev = z;
+  }
+  return { r, vol };
+}
+function forecastMC(th, lnhT, zT, horizon, sims) {
+  const paths = Array.from({ length: horizon }, () => new Float64Array(sims));
+  const vols = Array.from({ length: horizon }, () => new Float64Array(sims));
+  for (let s = 0; s < sims; s++) {
+    let lnh = lnhT, zPrev = zT;
+    for (let hstep = 0; hstep < horizon; hstep++) {
+      lnh = th.omega + th.alpha * (Math.abs(zPrev) - SQ2PI) + th.theta * zPrev + th.beta * lnh;
+      lnh = Math.min(Math.max(lnh, -30), 30);
+      const sd = Math.exp(lnh / 2), z = randT(th.nu);
+      paths[hstep][s] = th.mu + sd * z; vols[hstep][s] = sd; zPrev = z;
+    }
+  }
+  const bands = { p05: [], p25: [], p50: [], p75: [], p95: [], vol: [] };
+  for (let hstep = 0; hstep < horizon; hstep++) {
+    const srt = Array.from(paths[hstep]).sort((a, b) => a - b);
+    bands.p05.push(percentile(srt, 0.05)); bands.p25.push(percentile(srt, 0.25));
+    bands.p50.push(percentile(srt, 0.50)); bands.p75.push(percentile(srt, 0.75));
+    bands.p95.push(percentile(srt, 0.95));
+    bands.vol.push(mean(Array.from(vols[hstep])));
+  }
+  // muestra de sendas para animación (partículas)
+  const nS = Math.min(80, sims);
+  bands.sample = [];
+  for (let s = 0; s < nS; s++) {
+    const path = new Float64Array(horizon);
+    for (let hstep = 0; hstep < horizon; hstep++) path[hstep] = paths[hstep][s];
+    bands.sample.push(path);
+  }
+  // métricas de riesgo: VaR/ES a 1 día y VaR acumulado a 10 días
+  const d1 = Array.from(paths[0]).sort((a, b) => a - b);
+  const q05 = percentile(d1, 0.05), q01 = percentile(d1, 0.01);
+  const tail = d1.filter(x => x <= q05);
+  const cumH = Math.min(10, horizon), cum = new Float64Array(sims);
+  for (let s = 0; s < sims; s++) { let acc = 0; for (let hstep = 0; hstep < cumH; hstep++) acc += paths[hstep][s]; cum[s] = acc; }
+  const cs = Array.from(cum).sort((a, b) => a - b);
+  bands.risk = {
+    var95_1: -q05, var99_1: -q01,
+    es95_1: -(tail.length ? mean(tail) : q05),
+    var95_10: -percentile(cs, 0.05)
+  };
+  return bands;
+}
+
+/* ================= LIBRERÍA DE GRÁFICOS (canvas) ================= */
+class Plot {
+  constructor(canvas, pad) {
+    this.cv = canvas;
+    this.pad = Object.assign({ l: 52, r: 16, t: 14, b: 30 }, pad || {});
+    this.resize();
+  }
+  resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.cv.clientWidth || this.cv.parentElement.clientWidth;
+    const h = parseInt(this.cv.getAttribute('height')) || 300;
+    this.cv.width = w * dpr; this.cv.height = h * dpr;
+    this.cv.style.height = h + 'px';
+    this.ctx = this.cv.getContext('2d');
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.W = w; this.H = h;
+  }
+  dom(xmin, xmax, ymin, ymax) {
+    if (ymin === ymax) { ymin -= 1; ymax += 1; }
+    this.xmin = xmin; this.xmax = xmax; this.ymin = ymin; this.ymax = ymax;
+  }
+  X(x) { return this.pad.l + (x - this.xmin) / (this.xmax - this.xmin) * (this.W - this.pad.l - this.pad.r); }
+  Y(y) { return this.H - this.pad.b - (y - this.ymin) / (this.ymax - this.ymin) * (this.H - this.pad.t - this.pad.b); }
+  clear() { this.ctx.clearRect(0, 0, this.W, this.H); }
+  axes(nx = 5, ny = 4, fmtX, fmtY) {
+    const c = this.ctx;
+    c.strokeStyle = css('--line'); c.fillStyle = css('--muted');
+    c.lineWidth = 1; c.font = '10px "IBM Plex Mono", monospace';
+    for (let i = 0; i <= ny; i++) {
+      const y = this.ymin + (this.ymax - this.ymin) * i / ny, py = this.Y(y);
+      c.globalAlpha = 0.55; c.beginPath(); c.moveTo(this.pad.l, py); c.lineTo(this.W - this.pad.r, py); c.stroke();
+      c.globalAlpha = 1; c.textAlign = 'right';
+      c.fillText(fmtY ? fmtY(y) : y.toFixed(1), this.pad.l - 7, py + 3);
+    }
+    c.textAlign = 'center';
+    for (let i = 0; i <= nx; i++) {
+      const x = this.xmin + (this.xmax - this.xmin) * i / nx;
+      c.fillText(fmtX ? fmtX(x) : Math.round(x), this.X(x), this.H - this.pad.b + 16);
+    }
+  }
+  line(xs, ys, color, width = 1.4, alpha = 1, dash) {
+    const c = this.ctx;
+    c.strokeStyle = color; c.lineWidth = width; c.globalAlpha = alpha;
+    c.setLineDash(dash || []);
+    c.beginPath();
+    for (let i = 0; i < xs.length; i++) {
+      const px = this.X(xs[i]), py = this.Y(ys[i]);
+      i === 0 ? c.moveTo(px, py) : c.lineTo(px, py);
+    }
+    c.stroke(); c.globalAlpha = 1; c.setLineDash([]);
+  }
+  band(xs, lo, hi, color, alpha = 0.18) {
+    const c = this.ctx;
+    c.fillStyle = color; c.globalAlpha = alpha;
+    c.beginPath();
+    for (let i = 0; i < xs.length; i++) { const p = [this.X(xs[i]), this.Y(hi[i])]; i === 0 ? c.moveTo(p[0], p[1]) : c.lineTo(p[0], p[1]); }
+    for (let i = xs.length - 1; i >= 0; i--) c.lineTo(this.X(xs[i]), this.Y(lo[i]));
+    c.closePath(); c.fill(); c.globalAlpha = 1;
+  }
+  vspan(x0, x1, color, alpha = 0.08) {
+    const c = this.ctx;
+    c.fillStyle = color; c.globalAlpha = alpha;
+    c.fillRect(this.X(x0), this.pad.t, this.X(x1) - this.X(x0), this.H - this.pad.t - this.pad.b);
+    c.globalAlpha = 1;
+  }
+  vline(x, color, dash) {
+    const c = this.ctx;
+    c.strokeStyle = color; c.lineWidth = 1; c.setLineDash(dash || [4, 4]);
+    c.beginPath(); c.moveTo(this.X(x), this.pad.t); c.lineTo(this.X(x), this.H - this.pad.b); c.stroke();
+    c.setLineDash([]);
+  }
+  label(x, y, txt, color, align = 'left') {
+    const c = this.ctx;
+    c.fillStyle = color; c.font = '10px "IBM Plex Mono", monospace'; c.textAlign = align;
+    c.fillText(txt, this.X(x), this.Y(y));
+  }
+}
+
+'use strict';
+/* ================= EGARCH LAB · APLICACIÓN ================= */
+
+/* Parámetros estimados del caso oro (notebook adjunto) */
+const GOLD = { mu: 0.0478, omega: -0.0032, alpha: 0.1224, theta: 0.0418, beta: 0.9847, nu: 5.70 };
+
+/* ---------- KaTeX ---------- */
+function renderEqs() {
+  if (typeof katex === 'undefined') {
+    document.querySelectorAll('.eq').forEach(el => {
+      el.innerHTML = '<code style="color:var(--muted)">' + el.dataset.eq + '</code>';
+    });
+    return;
+  }
+  document.querySelectorAll('.eq').forEach(el => {
+    katex.render(el.dataset.eq, el, { displayMode: el.classList.contains('disp'), throwOnError: false });
+  });
+}
+
+/* ---------- ecuación interactiva (S3) ---------- */
+function buildEqStage() {
+  const stage = document.getElementById('eqStage');
+  const terms = [
+    { t: 'lnh', tex: '\\ln h_t' }, { t: null, tex: '=' },
+    { t: 'omega', tex: '\\omega' }, { t: null, tex: '+' },
+    { t: 'alpha', tex: '\\alpha\\left(|z_{t-1}| - \\sqrt{\\tfrac{2}{\\pi}}\\right)' }, { t: null, tex: '+' },
+    { t: 'theta', tex: '\\theta\\, z_{t-1}' }, { t: null, tex: '+' },
+    { t: 'beta', tex: '\\beta\\,\\ln h_{t-1}' }
+  ];
+  terms.forEach(tm => {
+    const sp = document.createElement('span');
+    sp.className = 'term'; if (tm.t) sp.dataset.t = tm.t;
+    if (typeof katex !== 'undefined') katex.render(tm.tex, sp, { throwOnError: false });
+    else sp.textContent = tm.tex;
+    stage.appendChild(sp);
+  });
+  const legends = document.querySelectorAll('#eqLegend .lg');
+  const setOn = key => {
+    document.querySelectorAll('.eqStage .term').forEach(s => s.classList.toggle('on', s.dataset.t === key));
+    legends.forEach(l => l.classList.toggle('on', l.dataset.t === key));
+  };
+  stage.querySelectorAll('.term[data-t]').forEach(sp => {
+    sp.addEventListener('mouseenter', () => setOn(sp.dataset.t));
+    sp.addEventListener('click', () => setOn(sp.dataset.t));
+  });
+  legends.forEach(l => l.addEventListener('mouseenter', () => setOn(l.dataset.t)));
+}
+
+/* ---------- HERO: serie ambiental ---------- */
+function heroAnim() {
+  const cv = document.getElementById('heroCanvas');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ctx = cv.getContext('2d');
+  let W, H;
+  const fit = () => { const d = window.devicePixelRatio || 1; W = cv.clientWidth; H = cv.clientHeight; cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); };
+  fit(); window.addEventListener('resize', fit);
+  const th = GOLD, N = 900, buf = [];
+  let lnh = th.omega / (1 - th.beta), zP = 0;
+  const step = () => {
+    lnh = th.omega + th.alpha * (Math.abs(zP) - SQ2PI) + th.theta * zP + th.beta * lnh;
+    const s = Math.exp(lnh / 2), z = randT(th.nu);
+    zP = z; return { r: s * z, s };
+  };
+  for (let i = 0; i < N; i++) buf.push(step());
+  const draw = () => {
+    ctx.clearRect(0, 0, W, H);
+    const mid = H * 0.62, sc = H * 0.055;
+    for (let i = 1; i < buf.length; i++) {
+      const x0 = (i - 1) / N * W, x1 = i / N * W;
+      const hot = Math.min(buf[i].s / 2.2, 1);
+      ctx.strokeStyle = buf[i].r < 0 ? css('--neg') : css('--pos');
+      ctx.globalAlpha = 0.25 + 0.55 * hot;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x0, mid - buf[i - 1].r * sc); ctx.lineTo(x1, mid - buf[i].r * sc); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = css('--gold'); ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < buf.length; i++) {
+      const x = i / N * W, y = mid - buf[i].s * sc * 2.4;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  };
+  draw();
+  if (reduce) return;
+  let tick = 0;
+  (function loop() {
+    if (++tick % 3 === 0) { buf.push(step()); buf.shift(); draw(); }
+    requestAnimationFrame(loop);
+  })();
+}
+
+/* ---------- S1: clustering + histograma ---------- */
+let S1 = {};
+function drawS1() {
+  const sim = egarchSimulate(1500, GOLD);
+  S1.r = Array.from(sim.r); S1.v = Array.from(sim.vol);
+  const p = new Plot(document.getElementById('cvClusters'));
+  const xs = S1.r.map((_, i) => i);
+  const ymax = Math.max(...S1.r.map(Math.abs)) * 1.08;
+  p.dom(0, xs.length, -ymax, ymax); p.clear();
+  // franjas de alta varianza
+  const vbar = mean(S1.v) * 1.35; let inSpan = false, x0 = 0;
+  for (let i = 0; i < S1.v.length; i++) {
+    if (S1.v[i] > vbar && !inSpan) { inSpan = true; x0 = i; }
+    if ((S1.v[i] <= vbar || i === S1.v.length - 1) && inSpan) { inSpan = false; p.vspan(x0, i, css('--gold'), 0.07); }
+  }
+  p.axes(6, 4, x => Math.round(x), y => y.toFixed(0) + '%');
+  p.line(xs, S1.r, css('--txt'), 0.8, 0.85);
+  drawHist();
+  drawACF();
+}
+function drawHist() {
+  const showT = document.getElementById('chipT').classList.contains('on');
+  const r = S1.r, m = mean(r), sd = Math.sqrt(variance(r));
+  const z = r.map(x => (x - m) / sd);
+  const B = 61, lo = -7, hi = 7, w = (hi - lo) / B, cnt = new Array(B).fill(0);
+  z.forEach(x => { const b = Math.floor((x - lo) / w); if (b >= 0 && b < B) cnt[b]++; });
+  const dens = cnt.map(c => c / (z.length * w));
+  const p = new Plot(document.getElementById('cvHist'));
+  const logf = d => Math.log10(Math.max(d, 1e-5));
+  p.dom(lo, hi, -5, 0); p.clear();
+  p.axes(7, 5, x => x.toFixed(0) + 'σ', y => '1e' + Math.round(y));
+  // barras empíricas
+  const c = p.ctx;
+  c.fillStyle = css('--gold');
+  for (let b = 0; b < B; b++) {
+    if (dens[b] <= 0) continue;
+    const x = lo + b * w;
+    c.globalAlpha = 0.5;
+    c.fillRect(p.X(x), p.Y(logf(dens[b])), Math.max(p.X(x + w) - p.X(x) - 1, 1), p.Y(-5) - p.Y(logf(dens[b])));
+  }
+  c.globalAlpha = 1;
+  const gx = [], gn = [], gt = [];
+  const nu = 5.7;
+  const ct = Math.exp(gammaln((nu + 1) / 2) - gammaln(nu / 2)) / Math.sqrt(Math.PI * (nu - 2));
+  for (let x = lo; x <= hi; x += 0.05) {
+    gx.push(x);
+    gn.push(logf(Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI)));
+    gt.push(logf(ct * Math.pow(1 + x * x / (nu - 2), -(nu + 1) / 2)));
+  }
+  p.line(gx, gn, css('--neg'), 1.6);
+  p.label(lo + 0.3, -0.55, '— Normal', css('--neg'));
+  if (showT) { p.line(gx, gt, css('--pos'), 1.6); p.label(lo + 0.3, -1.05, '— t-Student ν=5.7', css('--pos')); }
+  p.label(hi - 0.3, -0.55, 'empírica (barras)', css('--gold'), 'right');
+}
+
+
+/* ---------- S1: ACF de r vs |r| ---------- */
+function drawACF() {
+  const r = S1.r, L = 40;
+  const a1 = acf(r, L), a2 = acf(r.map(Math.abs), L);
+  const p = new Plot(document.getElementById('cvACF'));
+  const band = 1.96 / Math.sqrt(r.length);
+  const ymax = Math.max(...a2, band) * 1.3;
+  const ymin = Math.min(...a1, -band) * 1.8 - 0.02;
+  p.dom(0, L + 1, ymin, ymax); p.clear();
+  p.band([0, L + 1], [-band, -band], [band, band], css('--muted'), 0.13);
+  p.axes(8, 4, x => Math.round(x), y => y.toFixed(2));
+  p.line([0, L + 1], [0, 0], css('--line'), 1);
+  const c = p.ctx;
+  for (let k = 1; k <= L; k++) {
+    c.globalAlpha = 0.95; c.lineWidth = 2.2;
+    c.strokeStyle = css('--muted');
+    c.beginPath(); c.moveTo(p.X(k) - 1.6, p.Y(0)); c.lineTo(p.X(k) - 1.6, p.Y(a1[k - 1])); c.stroke();
+    c.strokeStyle = css('--gold');
+    c.beginPath(); c.moveTo(p.X(k) + 1.6, p.Y(0)); c.lineTo(p.X(k) + 1.6, p.Y(a2[k - 1])); c.stroke();
+  }
+  c.globalAlpha = 1;
+  p.label(1, ymax * 0.92, 'ACF de |r| — la memoria de la magnitud', css('--gold'));
+  p.label(1, ymax * 0.78, 'ACF de r — la dirección, indistinguible de ruido', css('--muted'));
+  p.label(L, band + ymax * 0.05, 'banda ±1.96/√n', css('--muted'), 'right');
+}
+
+/* ---------- S4: news impact curve ---------- */
+function drawNIC() {
+  const th = parseFloat(document.getElementById('rTheta').value);
+  const al = parseFloat(document.getElementById('rAlpha').value);
+  document.getElementById('vTheta').textContent = (th >= 0 ? '+' : '') + th.toFixed(3);
+  document.getElementById('vAlpha').textContent = al.toFixed(3);
+  const p = new Plot(document.getElementById('cvNIC'));
+  const xs = [], g = [], gsym = [];
+  for (let z = -4; z <= 4; z += 0.05) {
+    xs.push(z);
+    g.push(th * z + al * (Math.abs(z) - SQ2PI));
+    gsym.push(al * (Math.abs(z) - SQ2PI));
+  }
+  const ymax = Math.max(...g.map(Math.abs), ...gsym.map(Math.abs)) * 1.15 + 0.02;
+  p.dom(-4, 4, -Math.max(0.25 * ymax, al * SQ2PI * 1.3 + 0.02), ymax);
+  p.clear();
+  p.vspan(-4, 0, css('--neg'), 0.05); p.vspan(0, 4, css('--pos'), 0.05);
+  p.axes(8, 4, x => x.toFixed(0), y => y.toFixed(2));
+  p.vline(0, css('--muted'));
+  p.line(xs, gsym, css('--muted'), 1.2, 0.8, [5, 5]);
+  p.line(xs, g, css('--gold'), 2.2);
+  p.label(-3.8, ymax * 0.9, 'g(z) EGARCH —', css('--gold'));
+  p.label(-3.8, ymax * 0.74, 'simétrico (θ=0) ---', css('--muted'));
+  const gm = th * -2.5 + al * (2.5 - SQ2PI), gp = th * 2.5 + al * (2.5 - SQ2PI);
+  p.label(-2.5, gm + ymax * 0.08, 'z=−2.5 → ' + gm.toFixed(3), css('--neg'), 'center');
+  p.label(2.5, gp + ymax * 0.08, 'z=+2.5 → ' + gp.toFixed(3), css('--pos'), 'center');
+}
+function wireNIC() {
+  ['rTheta', 'rAlpha'].forEach(id => document.getElementById(id).addEventListener('input', drawNIC));
+  const pre = { stock: { th: -0.12, al: 0.10 }, gold: { th: 0.042, al: 0.122 }, sym: { th: 0, al: 0.15 } };
+  document.querySelectorAll('[data-pre]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-pre]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    const v = pre[b.dataset.pre];
+    document.getElementById('rTheta').value = v.th;
+    document.getElementById('rAlpha').value = v.al;
+    drawNIC();
+  }));
+}
+
+/* ---------- S5: simulador ---------- */
+function drawSim() {
+  const b = parseFloat(document.getElementById('rB').value);
+  const a = parseFloat(document.getElementById('rA').value);
+  const t = parseFloat(document.getElementById('rTh').value);
+  const nu = parseFloat(document.getElementById('rNu').value);
+  document.getElementById('vB').textContent = b.toFixed(3);
+  document.getElementById('vA').textContent = a.toFixed(2);
+  document.getElementById('vTh').textContent = t.toFixed(2);
+  document.getElementById('vNu').textContent = nu.toFixed(1);
+  const lnhbar = Math.log(1.0);
+  const th = { mu: 0, omega: (1 - b) * lnhbar, alpha: a, theta: t, beta: b, nu };
+  const sim = egarchSimulate(1500, th);
+  const r = Array.from(sim.r), v = Array.from(sim.vol), xs = r.map((_, i) => i);
+  const p1 = new Plot(document.getElementById('cvSimR'));
+  const ym = Math.min(Math.max(...r.map(Math.abs)) * 1.05, 25);
+  p1.dom(0, r.length, -ym, ym); p1.clear();
+  p1.axes(6, 4, x => Math.round(x), y => y.toFixed(0));
+  p1.line(xs, r.map(x => Math.min(Math.max(x, -25), 25)), css('--txt'), 0.8, 0.85);
+  const p2 = new Plot(document.getElementById('cvSimV'));
+  p2.dom(0, v.length, 0, Math.min(Math.max(...v) * 1.1, 12)); p2.clear();
+  p2.axes(6, 3, x => Math.round(x), y => y.toFixed(1));
+  p2.line(xs, v.map(x => Math.min(x, 12)), css('--gold'), 1.4);
+  document.getElementById('stB').textContent = b.toFixed(3);
+  document.getElementById('stHL').textContent = b > 0 && b < 1 ? Math.round(Math.log(0.5) / Math.log(b)) + ' días' : '—';
+  document.getElementById('stK').textContent = kurtosis(r).toFixed(1);
+}
+function wireSim() {
+  ['rB', 'rA', 'rTh', 'rNu'].forEach(id => document.getElementById(id).addEventListener('input', drawSim));
+  document.getElementById('btnResim').addEventListener('click', drawSim);
+}
+
+
+/* ---------- S5: respuesta al impulso ±3σ ---------- */
+function simParams() {
+  const b = parseFloat(document.getElementById('rB').value);
+  const a = parseFloat(document.getElementById('rA').value);
+  const t = parseFloat(document.getElementById('rTh').value);
+  return { b, a, t };
+}
+function irfPath(g, b, H) {
+  const out = [];
+  for (let k = 1; k <= H; k++) out.push(Math.exp(Math.pow(b, k - 1) * g / 2)); // √h relativo al nivel base
+  return out;
+}
+let irfAnim = null;
+function drawIRF(frac) {
+  const { b, a, t } = simParams();
+  const H = 60;
+  const gN = t * (-3) + a * (3 - SQ2PI);
+  const gP = t * (3) + a * (3 - SQ2PI);
+  const vN = irfPath(gN, b, H), vP = irfPath(gP, b, H);
+  const p = new Plot(document.getElementById('cvIRF'));
+  const ymax = Math.max(...vN, ...vP, 1.02) * 1.06, ymin = Math.min(...vN, ...vP, 0.98) * 0.96;
+  p.dom(0, H, ymin, ymax); p.clear();
+  p.axes(6, 4, x => '+' + Math.round(x) + 'd', y => y.toFixed(2) + 'x');
+  p.line([0, H], [1, 1], css('--muted'), 1, 0.7, [4, 4]);
+  const n = Math.max(2, Math.round(H * frac));
+  const xs = Array.from({ length: n }, (_, i) => i + 1);
+  p.line(xs, vN.slice(0, n), css('--neg'), 2);
+  p.line(xs, vP.slice(0, n), css('--pos'), 2);
+  p.label(1.2, ymax * 0.985, 'choque −3σ', css('--neg'));
+  p.label(1.2, ymax * 0.985 - (ymax - ymin) * 0.07, 'choque +3σ', css('--pos'));
+  p.label(H - 1, 1 - (ymax - ymin) * 0.05, 'nivel de largo plazo', css('--muted'), 'right');
+  if (frac >= 1) {
+    const gap = Math.abs(vP[0] - vN[0]);
+    document.getElementById('stIRF').textContent =
+      'brecha inicial entre curvas: ' + (gap * 100).toFixed(1) + '% del nivel base — proporcional a |θ|';
+  }
+}
+function fireIRF() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (irfAnim) cancelAnimationFrame(irfAnim);
+  if (reduce) { drawIRF(1); return; }
+  const t0 = performance.now(), dur = 1400;
+  const step = now => {
+    const f = Math.min((now - t0) / dur, 1);
+    drawIRF(1 - Math.pow(1 - f, 3)); // ease-out
+    if (f < 1) irfAnim = requestAnimationFrame(step);
+  };
+  irfAnim = requestAnimationFrame(step);
+}
+/* ---------- abanico de pronóstico animado (sendas Monte Carlo) ---------- */
+let fanAnims = {};
+function drawFan(canvasId, bands, histR, histLabelDays) {
+  const p = new Plot(document.getElementById(canvasId));
+  const H = bands.p50.length;
+  const nH = Math.min(histLabelDays || 80, histR.length);
+  const hist = histR.slice(-nH);
+  const xs = []; for (let i = 0; i < nH; i++) xs.push(i - nH);
+  const fx = []; for (let i = 0; i < H; i++) fx.push(i + 1);
+  const all = hist.concat(bands.p05, bands.p95);
+  const ym = Math.max(...all.map(Math.abs)) * 1.12;
+  p.dom(-nH, H, -ym, ym);
+
+  const frame = frac => {
+    p.clear();
+    p.axes(6, 4, x => (x <= 0 ? x : '+' + x), y => y.toFixed(1) + '%');
+    p.vspan(0, H, css('--gold'), 0.045);
+    p.line(xs, hist, css('--txt'), 1, 0.9);
+    p.vline(0, css('--muted'), [2, 4]);
+    const nDay = Math.max(1, Math.round(H * frac));
+    // sendas: cada trayectoria simulada es una partícula avanzando
+    if (bands.sample) {
+      const c = p.ctx;
+      bands.sample.forEach(path => {
+        c.strokeStyle = css('--gold'); c.globalAlpha = 0.07; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(p.X(0), p.Y(hist[hist.length - 1]));
+        for (let d = 0; d < nDay; d++) c.lineTo(p.X(d + 1), p.Y(path[d]));
+        c.stroke();
+      });
+      if (frac < 1) { // cabezas luminosas
+        const c2 = p.ctx; c2.globalAlpha = 0.9; c2.fillStyle = css('--gold');
+        bands.sample.forEach(path => {
+          c2.beginPath(); c2.arc(p.X(nDay), p.Y(path[nDay - 1]), 1.4, 0, 6.2832); c2.fill();
+        });
+      }
+      p.ctx.globalAlpha = 1;
+    }
+    if (frac >= 1) {
+      p.band(fx, bands.p05, bands.p95, css('--gold'), 0.14);
+      p.band(fx, bands.p25, bands.p75, css('--gold'), 0.22);
+      p.line(fx, bands.p50, css('--gold'), 1.6, 1, [2, 3]);
+      const volLine = bands.vol;
+      p.line(fx, volLine, css('--pos'), 1.6);
+      p.line(fx, volLine.map(v => -v), css('--pos'), 1.6);
+      p.label(H - 1, bands.vol[H - 1] + ym * 0.08, '±√hₜ esperada', css('--pos'), 'right');
+    }
+    p.label(-nH + 2, ym * 0.9, 'historia', css('--muted'));
+    p.label(H - 1, ym * 0.9, 'pronóstico MC · ' + (bands.sample ? bands.sample.length + ' de 2 000 sendas' : ''), css('--gold'), 'right');
+  };
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (fanAnims[canvasId]) cancelAnimationFrame(fanAnims[canvasId]);
+  if (reduce || !bands.sample) { frame(1); return; }
+  const t0 = performance.now(), dur = 1900;
+  const step = now => {
+    const f = Math.min((now - t0) / dur, 1);
+    frame(f);
+    if (f < 1) fanAnims[canvasId] = requestAnimationFrame(step);
+  };
+  fanAnims[canvasId] = requestAnimationFrame(step);
+}
+
+/* ---------- tarjetas de riesgo VaR/ES ---------- */
+function renderRisk(elId, risk) {
+  const el = document.getElementById(elId);
+  if (!el || !risk) return;
+  el.innerHTML =
+    '<div class="stat"><div class="k">VaR 95% · 1 día</div><div class="v">' + risk.var95_1.toFixed(2) + '%</div>' +
+    '<div class="d">Con 95% de confianza, la pérdida de mañana no excederá este valor</div></div>' +
+    '<div class="stat"><div class="k">VaR 99% · 1 día</div><div class="v">' + risk.var99_1.toFixed(2) + '%</div>' +
+    '<div class="d">El umbral regulatorio: solo 1 de cada 100 días debería superarlo</div></div>' +
+    '<div class="stat"><div class="k">ES 95% · 1 día</div><div class="v" style="color:var(--neg)">' + risk.es95_1.toFixed(2) + '%</div>' +
+    '<div class="d">Expected Shortfall: la pérdida promedio en el peor 5% de escenarios — siempre mayor que el VaR</div></div>' +
+    '<div class="stat"><div class="k">VaR 95% · 10 días</div><div class="v">' + risk.var95_10.toFixed(2) + '%</div>' +
+    '<div class="d">Retorno acumulado a dos semanas bursátiles, con la dinámica completa del EGARCH</div></div>';
+}
+
+/* ---------- S6: abanico del oro ---------- */
+function goldFan() {
+  const st = document.getElementById('stGold');
+  st.textContent = 'simulando…';
+  setTimeout(() => {
+    const hist = egarchSimulate(120, GOLD, Math.log(1.96));
+    const bands = forecastMC(GOLD, Math.log(1.96), -0.3, 30, 2000);
+    drawFan('cvGoldFan', bands, Array.from(hist.r), 80);
+    renderRisk('goldVaR', bands.risk);
+    st.textContent = '2 000 sendas · t-Student ν=5.7 · listo';
+    st.className = 'status ok';
+  }, 30);
+}
+
+
+/* ---------- S6: distribución predictiva partícula a partícula ---------- */
+function tPdfStd(z, nu) {
+  const c = Math.exp(gammaln((nu + 1) / 2) - gammaln(nu / 2)) / Math.sqrt(Math.PI * (nu - 2));
+  return c * Math.pow(1 + z * z / (nu - 2), -(nu + 1) / 2);
+}
+const PART = { XMIN: -6, XMAX: 6, NB: 90, N: 800, SD: 1.40 };
+let partAnim = null;
+function partTheory(scaleCount) {
+  const xs = [], ys = [];
+  for (let x = PART.XMIN; x <= PART.XMAX; x += 0.06) {
+    xs.push(x);
+    ys.push(tPdfStd((x - GOLD.mu) / PART.SD, GOLD.nu) / PART.SD * scaleCount);
+  }
+  return { xs, ys };
+}
+function partSetup() {
+  const p = new Plot(document.getElementById('cvPart'));
+  const binW = (PART.XMAX - PART.XMIN) / PART.NB;
+  const scale = PART.N * binW;
+  const th = partTheory(scale);
+  const ymax = Math.max(...th.ys) * 1.35;
+  p.dom(PART.XMIN, PART.XMAX, 0, ymax);
+  return { p, binW, scale, th, ymax };
+}
+function drawPartBase() {
+  const { p, th, ymax } = partSetup();
+  p.clear();
+  p.axes(6, 4, x => x.toFixed(0) + '%', y => Math.round(y));
+  p.line(th.xs, th.ys, css('--muted'), 1.2, 0.7, [5, 5]);
+  p.label(PART.XMIN + 0.3, ymax * 0.93, 'densidad t-Student teórica (ν=5.7, √h=1.40%) · esperando escenarios', css('--muted'));
+}
+function fireParticles() {
+  if (partAnim) cancelAnimationFrame(partAnim);
+  const st = document.getElementById('stPart');
+  const { p, binW, scale, th, ymax } = partSetup();
+  const scen = [];
+  for (let i = 0; i < PART.N; i++) {
+    const r = GOLD.mu + PART.SD * randT(GOLD.nu);
+    scen.push(Math.min(Math.max(r, PART.XMIN + 1e-6), PART.XMAX - 1e-6));
+  }
+  const counts = new Array(PART.NB).fill(0);
+  const landed = [];
+  const falling = [];
+  let idx = 0;
+
+  const drawFrame = final => {
+    p.clear();
+    p.axes(6, 4, x => x.toFixed(0) + '%', y => Math.round(y));
+    let q05 = null, q01 = null, es = null;
+    if (landed.length >= 60) {
+      const s = [...landed].sort((a, b) => a - b);
+      q05 = percentile(s, 0.05); q01 = percentile(s, 0.01);
+      const tail = s.filter(v => v <= q05);
+      es = tail.length ? mean(tail) : q05;
+    }
+    const c = p.ctx;
+    for (let b = 0; b < PART.NB; b++) {
+      if (!counts[b]) continue;
+      const x = PART.XMIN + b * binW, xc = x + binW / 2;
+      c.fillStyle = (q05 !== null && xc <= q05) ? css('--neg') : css('--gold');
+      c.globalAlpha = 0.75;
+      c.fillRect(p.X(x) + 0.5, p.Y(counts[b]), Math.max(p.X(x + binW) - p.X(x) - 1, 1), p.Y(0) - p.Y(counts[b]));
+    }
+    c.globalAlpha = 1;
+    c.fillStyle = css('--gold');
+    falling.forEach(f => { c.beginPath(); c.arc(p.X(f.x), f.y, 1.7, 0, 6.2832); c.fill(); });
+    p.line(th.xs, th.ys, css('--muted'), 1.2, final ? 0.9 : 0.4, [5, 5]);
+    if (q05 !== null) {
+      p.vline(q05, css('--neg'), [6, 4]);
+      p.label(q05 - 0.12, ymax * 0.96, 'VaR 95%: ' + (-q05).toFixed(2) + '%', css('--neg'), 'right');
+      p.vline(q01, css('--neg'), [2, 4]);
+      p.label(q01 - 0.12, ymax * 0.82, 'VaR 99%: ' + (-q01).toFixed(2) + '%', css('--neg'), 'right');
+    }
+    if (final && q05 !== null) {
+      const qT = -(GOLD.mu + tQuantileStd(0.05, GOLD.nu) * PART.SD);
+      p.label(PART.XMAX - 0.2, ymax * 0.93,
+        'VaR95 teórico: ' + qT.toFixed(2) + '% · ES95 empírico: ' + (-es).toFixed(2) + '%', css('--muted'), 'right');
+    }
+  };
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    scen.forEach(v => { counts[Math.floor((v - PART.XMIN) / binW)]++; landed.push(v); });
+    drawFrame(true);
+    st.textContent = PART.N + ' escenarios · en rojo: cola del 5%';
+    return;
+  }
+  const step = () => {
+    for (let k = 0; k < 6 && idx < PART.N; k++, idx++) {
+      falling.push({ x: scen[idx], y: p.pad.t - Math.random() * 30, vy: 1.5 + Math.random() });
+    }
+    for (let i = falling.length - 1; i >= 0; i--) {
+      const f = falling[i];
+      f.vy += 0.55; f.y += f.vy;
+      const b = Math.floor((f.x - PART.XMIN) / binW);
+      if (f.y >= p.Y(counts[b] + 1)) { counts[b]++; landed.push(f.x); falling.splice(i, 1); }
+    }
+    const done = idx >= PART.N && falling.length === 0;
+    drawFrame(done);
+    st.textContent = 'escenarios: ' + landed.length + ' / ' + PART.N +
+      (landed.length >= 60 ? ' · en rojo: cola del 5% (territorio del ES)' : '');
+    if (!done) partAnim = requestAnimationFrame(step);
+  };
+  partAnim = requestAnimationFrame(step);
+}
+
+/* ---------- S7: lab Binance ---------- */
+async function runLive() {
+  const btn = document.getElementById('btnLive');
+  const st = document.getElementById('stLive');
+  const sym = document.getElementById('selAsset').value;
+  btn.disabled = true; st.className = 'status';
+  try {
+    st.textContent = 'descargando ' + sym + '…';
+    const url = 'https://api.binance.com/api/v3/klines?symbol=' + sym + '&interval=1d&limit=1000';
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const kl = await resp.json();
+    const close = kl.map(k => parseFloat(k[4]));
+    const r = [];
+    for (let i = 1; i < close.length; i++) r.push((close[i] / close[i - 1] - 1) * 100);
+    st.textContent = 'estimando por máxima verosimilitud (' + r.length + ' obs)…';
+    await new Promise(res => setTimeout(res, 30));
+    const est = estimateEGARCH(r);
+    st.textContent = 'estimando modelo restringido (θ=0) para la prueba de asimetría…';
+    await new Promise(res => setTimeout(res, 20));
+    const est0 = estimateEGARCH(r, true);
+    renderLive(sym, r, est, est0);
+    st.textContent = 'listo · logL=' + est.ll.toFixed(1) + ' · AIC=' + est.aic.toFixed(1) + ' · BIC=' + est.bic.toFixed(1);
+    st.className = 'status ok';
+  } catch (e) {
+    st.textContent = 'Error: ' + e.message + ' — verifica tu conexión (la API de Binance puede estar bloqueada en algunas redes).';
+    st.className = 'status err';
+  } finally { btn.disabled = false; }
+}
+function starsFor(p) { return p < 0.01 ? '***' : p < 0.05 ? '**' : p < 0.1 ? '*' : ''; }
+function renderLive(sym, r, est, est0) {
+  document.getElementById('liveOut').style.display = 'block';
+  const th = est.th, se = est.se;
+  const xs = r.map((_, i) => i);
+  const p1 = new Plot(document.getElementById('cvLiveR'));
+  const ym = Math.max(...r.map(Math.abs)) * 1.05;
+  p1.dom(0, r.length, -ym, ym); p1.clear();
+  p1.axes(6, 4, x => Math.round(x), y => y.toFixed(0) + '%');
+  p1.line(xs, r, css('--txt'), 0.8, 0.85);
+  document.getElementById('capLiveR').textContent = 'RETORNOS DIARIOS ' + sym + ' (%) · últimos ' + r.length + ' días';
+  const rows = [
+    ['μ  (media, %)', 'mu'], ['ω  (intercepto)', 'omega'], ['α  (magnitud)', 'alpha'],
+    ['θ  (asimetría)', 'theta'], ['β  (persistencia)', 'beta'], ['ν  (g.l. t-Student)', 'nu']
+  ];
+  const tb = document.getElementById('tbParams'); tb.innerHTML = '';
+  rows.forEach(([lab, k]) => {
+    const v = th[k], s = se && isFinite(se[k]) ? se[k] : NaN;
+    const tstat = isFinite(s) && s > 0 ? v / s : NaN;
+    const pval = isFinite(tstat) ? 2 * (1 - normCdf(Math.abs(tstat))) : NaN;
+    const sg = isFinite(pval) ? starsFor(pval) : '';
+    tb.insertAdjacentHTML('beforeend',
+      '<tr><td>' + lab + '</td><td>' + v.toFixed(4) + '</td><td>' + (isFinite(s) ? s.toFixed(4) : '—') +
+      '</td><td>' + (isFinite(tstat) ? tstat.toFixed(2) : '—') + '</td><td>' + (isFinite(pval) ? pval.toFixed(4) : '—') +
+      '</td><td class="' + (sg ? 'sig' : 'nosig') + '">' + (sg || 'n.s.') + '</td></tr>');
+  });
+  const hl = th.beta > 0 && th.beta < 1 ? Math.round(Math.log(0.5) / Math.log(th.beta)) : null;
+  const asym = Math.abs(th.theta) < 0.015 ? 'prácticamente <b>simétrico</b>: buenas y malas noticias pesan parecido'
+    : th.theta < 0 ? 'de tipo <b>apalancamiento clásico</b> (θ&lt;0): las caídas disparan más la volatilidad — patrón típico de activos de riesgo'
+    : 'de tipo <b>refugio / FOMO</b> (θ&gt;0): los choques positivos agitan más el mercado que los negativos';
+  document.getElementById('liveInterp').innerHTML =
+    '<b>Lectura automática:</b> ' + sym + ' muestra persistencia β=' + th.beta.toFixed(3) +
+    (hl ? ' (vida media del choque ≈ ' + hl + ' días)' : '') +
+    ', un comportamiento ' + asym + ', y colas ' + (th.nu < 8 ? 'claramente pesadas' : 'moderadas') +
+    ' (ν=' + th.nu.toFixed(1) + '). Sensibilidad a noticias α=' + th.alpha.toFixed(3) + '.';
+  // diagnóstico en vivo: LR de asimetría + Ljung-Box sobre z²
+  const lr = 2 * (est.ll - est0.ll);
+  const pLR = 1 - chi2cdf(Math.max(lr, 0), 1);
+  const z2 = Array.from(est.filter.z).map(x => x * x);
+  const lb = ljungBox(z2, 10);
+  const dAIC = est0.aic - est.aic;
+  document.getElementById('liveDiag').innerHTML =
+    '<div class="stat"><div class="k">LR asimetría · H₀: θ=0</div><div class="v">' + lr.toFixed(2) + '</div>' +
+    '<div class="d">p = ' + pLR.toFixed(4) + ' · ' + (pLR < 0.05
+      ? '<span class="verdict yes">asimetría significativa</span> — el término θ está justificado'
+      : '<span class="verdict no">no significativa</span> — un modelo simétrico bastaría aquí') + '</div></div>' +
+    '<div class="stat"><div class="k">Ljung–Box ẑ² · lag 10</div><div class="v">' + lb.Q.toFixed(2) + '</div>' +
+    '<div class="d">p = ' + lb.p.toFixed(4) + ' · ' + (lb.p >= 0.05
+      ? '<span class="verdict yes">sin efectos ARCH remanentes</span> — especificación validada'
+      : '<span class="verdict no">estructura remanente</span> — considerar más rezagos o revisar la media') + '</div></div>' +
+    '<div class="stat"><div class="k">ΔAIC · simétrico − EGARCH</div><div class="v">' + dAIC.toFixed(1) + '</div>' +
+    '<div class="d">' + (dAIC > 2
+      ? '<span class="verdict yes">prefiere el asimétrico</span> — la mejora en ajuste supera el costo del parámetro extra'
+      : dAIC < -2
+      ? '<span class="verdict no">prefiere el simétrico</span> — por parsimonia, θ no paga su costo'
+      : '<span class="verdict no">diferencia despreciable</span> — con |ΔAIC| &lt; 2 ambos modelos son estadísticamente equivalentes') + '</div></div>';
+  drawConvergence(est.trace);
+  drawSurface(r, est.th);
+  drawBacktest(r, est);
+  drawLiveACF(r, est);
+  drawLiveQQ(est);
+  const vol = Array.from(est.filter.lnh).map(l => Math.exp(l / 2));
+  const p2 = new Plot(document.getElementById('cvLiveV'));
+  p2.dom(0, vol.length, 0, Math.max(...vol) * 1.1); p2.clear();
+  p2.axes(6, 3, x => Math.round(x), y => y.toFixed(1) + '%');
+  p2.line(xs, vol, css('--gold'), 1.4);
+  const lnhT = est.filter.lnh[est.filter.lnh.length - 1];
+  const zT = est.filter.z[est.filter.z.length - 1];
+  const bands = forecastMC(th, lnhT, zT, 30, 2000);
+  drawFan('cvLiveFan', bands, r, 90);
+  renderRisk('liveVaR', bands.risk);
+}
+
+
+/* ---------- convergencia de Nelder-Mead ---------- */
+function drawConvergence(trace) {
+  const cv = document.getElementById('cvLiveConv');
+  const p = new Plot(cv);
+  const xs = trace.map((_, i) => i);
+  const lo = Math.min(...trace), hi = Math.max(...trace.slice(0, Math.min(40, trace.length)));
+  p.dom(0, trace.length, lo - (hi - lo) * 0.05, hi);
+  const frame = frac => {
+    p.clear();
+    p.axes(6, 4, x => Math.round(x), y => y.toFixed(0));
+    const n = Math.max(2, Math.round(trace.length * frac));
+    p.line(xs.slice(0, n), trace.slice(0, n), css('--gold'), 1.6);
+    if (frac >= 1) {
+      p.line([0, trace.length], [lo, lo], css('--pos'), 1, 0.8, [4, 4]);
+      p.label(trace.length - 2, lo + (hi - lo) * 0.06, 'máximo de verosimilitud alcanzado: −ℓ = ' + lo.toFixed(1), css('--pos'), 'right');
+    }
+  };
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { frame(1); return; }
+  const t0 = performance.now(), dur = 1300;
+  const step = now => { const f = Math.min((now - t0) / dur, 1); frame(f); if (f < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+/* ---------- superficie de verosimilitud en (θ, β) ---------- */
+function drawSurface(r, th) {
+  const cv = document.getElementById('cvLiveSurf');
+  const p = new Plot(cv, { l: 58, r: 16, t: 14, b: 34 });
+  const tLo = Math.min(th.theta - 0.16, -0.04), tHi = Math.max(th.theta + 0.16, 0.04);
+  const bLo = Math.max(0.5, th.beta - 0.14), bHi = Math.min(0.9985, th.beta + 0.015);
+  const NX = 56, NY = 34;
+  const base = { ...th };
+  const ll = [];
+  let llMax = -Infinity;
+  for (let j = 0; j < NY; j++) {
+    const row = [];
+    for (let i = 0; i < NX; i++) {
+      const tt = tLo + (tHi - tLo) * i / (NX - 1);
+      const bb = bLo + (bHi - bLo) * j / (NY - 1);
+      const v = -negLogLik(r, { ...base, theta: tt, beta: bb });
+      row.push(v); if (v > llMax) llMax = v;
+    }
+    ll.push(row);
+  }
+  p.dom(tLo, tHi, bLo, bHi); p.clear();
+  const c = p.ctx, cut95 = -2.996; // χ²(2)/2 al 95%
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+    const rel = ll[j][i] - llMax;
+    const lik = Math.exp(Math.max(rel, -12));
+    const x0 = p.X(tLo + (tHi - tLo) * (i - 0.5) / (NX - 1));
+    const x1 = p.X(tLo + (tHi - tLo) * (i + 0.5) / (NX - 1));
+    const y0 = p.Y(bLo + (bHi - bLo) * (j - 0.5) / (NY - 1));
+    const y1 = p.Y(bLo + (bHi - bLo) * (j + 0.5) / (NY - 1));
+    c.fillStyle = css('--gold');
+    c.globalAlpha = 0.04 + 0.86 * lik;
+    c.fillRect(x0, y1, x1 - x0 + 0.6, y0 - y1 + 0.6);
+    if (rel >= cut95) { // región de confianza 95%: borde superior sutil
+      c.globalAlpha = 0.10; c.fillStyle = '#ffffff';
+      c.fillRect(x0, y1, x1 - x0 + 0.6, y0 - y1 + 0.6);
+    }
+  }
+  c.globalAlpha = 1;
+  p.axes(6, 4, x => x.toFixed(2), y => y.toFixed(2));
+  p.vline(0, css('--neg'), [5, 4]);
+  p.label((tHi - tLo) * 0.015, bHi - (bHi - bLo) * 0.06, 'H₀: θ = 0', css('--neg'));
+  const c2 = p.ctx;
+  c2.strokeStyle = css('--pos'); c2.lineWidth = 1.6;
+  const mx = p.X(th.theta), my = p.Y(th.beta);
+  c2.beginPath(); c2.moveTo(mx - 7, my); c2.lineTo(mx + 7, my); c2.moveTo(mx, my - 7); c2.lineTo(mx, my + 7); c2.stroke();
+  p.label(th.theta, th.beta - (bHi - bLo) * 0.07, '(θ̂, β̂)', css('--pos'), 'center');
+  c2.fillStyle = css('--muted'); c2.font = '10px "IBM Plex Mono", monospace';
+  c2.textAlign = 'center';
+  c2.fillText('θ (asimetría)', (p.X(tLo) + p.X(tHi)) / 2, p.H - 4);
+  c2.save(); c2.translate(12, (p.Y(bLo) + p.Y(bHi)) / 2); c2.rotate(-Math.PI / 2);
+  c2.fillText('β (persistencia)', 0, 0); c2.restore();
+}
+
+/* ---------- backtesting VaR 95% + Kupiec ---------- */
+function drawBacktest(r, est) {
+  const th = est.th;
+  const vol = Array.from(est.filter.lnh).map(l => Math.exp(l / 2));
+  const q05 = tQuantileStd(0.05, th.nu); // cuantil negativo de la t estandarizada
+  const varLine = vol.map(s => th.mu + q05 * s); // frontera inferior
+  const viol = [];
+  for (let t = 0; t < r.length; t++) if (r[t] < varLine[t]) viol.push(t);
+  const n = r.length, x = viol.length;
+  const kp = kupiec(x, n, 0.05);
+  const p = new Plot(document.getElementById('cvLiveBT'));
+  const xs = r.map((_, i) => i);
+  const ym = Math.max(...r.map(Math.abs), ...varLine.map(Math.abs)) * 1.08;
+  p.dom(0, n, -ym, ym); p.clear();
+  p.axes(6, 4, xx => Math.round(xx), y => y.toFixed(0) + '%');
+  p.line(xs, r, css('--txt'), 0.7, 0.55);
+  p.line(xs, varLine, css('--neg'), 1.5);
+  const c = p.ctx; c.fillStyle = css('--neg');
+  viol.forEach(t => { c.beginPath(); c.arc(p.X(t), p.Y(r[t]), 2.4, 0, 6.2832); c.fill(); });
+  p.label(2, -ym * 0.88, 'frontera VaR 95%: μ + q₀.₀₅·√hₜ', css('--neg'));
+  const expected = (0.05 * n).toFixed(0);
+  document.getElementById('liveBT').innerHTML =
+    '<div class="stat"><div class="k">Violaciones observadas</div><div class="v">' + x + '</div>' +
+    '<div class="d">Días en que la pérdida excedió el VaR, sobre ' + n + ' días evaluados</div></div>' +
+    '<div class="stat"><div class="k">Violaciones esperadas</div><div class="v">' + expected + '</div>' +
+    '<div class="d">El 5% de la muestra: lo que promete un VaR al 95% bien calibrado</div></div>' +
+    '<div class="stat"><div class="k">Kupiec LR · H₀: cobertura 5%</div><div class="v">' + kp.LR.toFixed(2) + '</div>' +
+    '<div class="d">p = ' + kp.p.toFixed(4) + ' · ' + (kp.p >= 0.05
+      ? '<span class="verdict yes">VaR bien calibrado</span> — la frecuencia de violaciones es compatible con el 5%'
+      : '<span class="verdict no">calibración rechazada</span> — el modelo ' + (x > 0.05 * n ? 'subestima' : 'sobreestima') + ' el riesgo de cola') + '</div></div>';
+}
+
+
+/* ---------- lab: ACF antes/después + QQ-plot ---------- */
+function drawLiveACF(r, est) {
+  const L = 20;
+  const a1 = acf(r.map(x => x * x), L);
+  const a2 = acf(Array.from(est.filter.z).map(x => x * x), L);
+  const p = new Plot(document.getElementById('cvLiveACF'));
+  const band = 1.96 / Math.sqrt(r.length);
+  const ymax = Math.max(...a1, ...a2, band) * 1.3;
+  const ymin = Math.min(...a1, ...a2, -band) * 1.8 - 0.02;
+  p.dom(0, L + 1, ymin, ymax); p.clear();
+  p.band([0, L + 1], [-band, -band], [band, band], css('--muted'), 0.13);
+  p.axes(5, 4, x => Math.round(x), y => y.toFixed(2));
+  p.line([0, L + 1], [0, 0], css('--line'), 1);
+  const c = p.ctx;
+  for (let k = 1; k <= L; k++) {
+    c.globalAlpha = 0.95; c.lineWidth = 2.6;
+    c.strokeStyle = css('--neg');
+    c.beginPath(); c.moveTo(p.X(k) - 1.8, p.Y(0)); c.lineTo(p.X(k) - 1.8, p.Y(a1[k - 1])); c.stroke();
+    c.strokeStyle = css('--pos');
+    c.beginPath(); c.moveTo(p.X(k) + 1.8, p.Y(0)); c.lineTo(p.X(k) + 1.8, p.Y(a2[k - 1])); c.stroke();
+  }
+  c.globalAlpha = 1;
+  p.label(0.6, ymax * 0.92, 'r² antes del modelo', css('--neg'));
+  p.label(0.6, ymax * 0.78, 'ẑ² después: la memoria absorbida', css('--pos'));
+}
+function drawLiveQQ(est) {
+  const z = Array.from(est.filter.z).slice().sort((a, b) => a - b);
+  const n = z.length, nu = est.th.nu;
+  const stepN = Math.max(1, Math.floor(n / 350));
+  const pts = [];
+  for (let i = 0; i < n; i += stepN) pts.push([tQuantileStd((i + 0.5) / n, nu), z[i]]);
+  const lim = Math.min(Math.max(...pts.map(q => Math.abs(q[0])), ...pts.map(q => Math.abs(q[1]))) * 1.06, 9);
+  const p = new Plot(document.getElementById('cvLiveQQ'));
+  p.dom(-lim, lim, -lim, lim); p.clear();
+  p.axes(4, 4, x => x.toFixed(0), y => y.toFixed(0));
+  p.line([-lim, lim], [-lim, lim], css('--gold'), 1.3, 0.9, [5, 4]);
+  const c = p.ctx;
+  c.fillStyle = css('--txt'); c.globalAlpha = 0.8;
+  pts.forEach(q => { c.beginPath(); c.arc(p.X(q[0]), p.Y(q[1]), 1.7, 0, 6.2832); c.fill(); });
+  c.globalAlpha = 1;
+  p.label(-lim * 0.92, lim * 0.86, 'cuantiles teóricos t(ν̂=' + nu.toFixed(1) + ') vs. empíricos de ẑ', css('--muted'));
+}
+
+/* ---------- infraestructura ---------- */
+const SECTION_IDS = ['hero', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'];
+function wirePresentation() {
+  const dots = document.createElement('div');
+  dots.className = 'dots'; dots.setAttribute('aria-hidden', 'true');
+  SECTION_IDS.forEach(id => {
+    const a = document.createElement('a');
+    a.href = '#' + id; a.dataset.s = id;
+    dots.appendChild(a);
+  });
+  document.body.appendChild(dots);
+  let current = 0;
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    current = SECTION_IDS.indexOf(e.target.id);
+    dots.querySelectorAll('a').forEach(d => d.classList.toggle('on', d.dataset.s === e.target.id));
+    document.querySelectorAll('nav .links a').forEach(l =>
+      l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+  }), { threshold: 0.35 });
+  SECTION_IDS.forEach(id => { const el = document.getElementById(id); if (el) io.observe(el); });
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'ArrowRight') { current = Math.min(current + 1, SECTION_IDS.length - 1); }
+    else if (e.key === 'ArrowLeft') { current = Math.max(current - 1, 0); }
+    else return;
+    e.preventDefault();
+    document.getElementById(SECTION_IDS[current]).scrollIntoView({ behavior: 'smooth' });
+  });
+}
+function wireScroll() {
+  const bar = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  }, { passive: true });
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); }),
+    { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  renderEqs(); buildEqStage(); heroAnim();
+  drawS1(); drawNIC(); wireNIC(); drawSim(); wireSim(); goldFan();
+  document.getElementById('chipT').addEventListener('click', e => { e.target.classList.toggle('on'); drawHist(); });
+  document.getElementById('btnGoldFan').addEventListener('click', goldFan);
+  drawPartBase();
+  document.getElementById('btnParticles').addEventListener('click', fireParticles);
+  document.getElementById('btnLive').addEventListener('click', runLive);
+  drawIRF(1);
+  document.getElementById('btnShock').addEventListener('click', fireIRF);
+  ['rB', 'rA', 'rTh'].forEach(id => document.getElementById(id).addEventListener('input', () => drawIRF(1)));
+  wireScroll(); wirePresentation();
+  let rz;
+  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { drawS1(); drawNIC(); drawSim(); drawIRF(1); goldFan(); drawPartBase(); }, 250); });
+});
+</script>
+</body>
+</html>
