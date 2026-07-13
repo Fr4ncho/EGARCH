@@ -718,6 +718,7 @@ html.js .reveal.vis .card,html.js .reveal.vis .stat{opacity:1;transform:none}
     <h3 style="margin:1.4rem 0 .4rem;font-size:1.15rem">Parámetros estimados (máxima verosimilitud, t-Student)</h3>
     <table class="params"><thead><tr><th>Parámetro</th><th>Estimación</th><th>Error est.</th><th>t</th><th>p-valor</th><th></th></tr></thead>
     <tbody id="tbParams"></tbody></table>
+    <p class="chartCap" id="sigLegend"></p>
     <div class="interp" id="liveInterp"></div>
 
 
@@ -1902,20 +1903,28 @@ function renderLive(sym, r, est, est0) {
     ['θ  (asimetría)', 'theta'], ['β  (persistencia)', 'beta'], ['ν  (g.l. t-Student)', 'nu']
   ];
   const tb = document.getElementById('tbParams'); tb.innerHTML = '';
+  let pTheta = NaN;
   rows.forEach(([lab, k]) => {
     const v = th[k], s = se && isFinite(se[k]) ? se[k] : NaN;
     const tstat = isFinite(s) && s > 0 ? v / s : NaN;
     const pval = isFinite(tstat) ? 2 * (1 - normCdf(Math.abs(tstat))) : NaN;
+    if (k === 'theta') pTheta = pval;
     const sg = isFinite(pval) ? starsFor(pval) : '';
     tb.insertAdjacentHTML('beforeend',
       '<tr><td>' + lab + '</td><td>' + v.toFixed(4) + '</td><td>' + (isFinite(s) ? s.toFixed(4) : '—') +
       '</td><td>' + (isFinite(tstat) ? tstat.toFixed(2) : '—') + '</td><td>' + (isFinite(pval) ? pval.toFixed(4) : '—') +
       '</td><td class="' + (sg ? 'sig' : 'nosig') + '">' + (sg || 'n.s.') + '</td></tr>');
   });
+  const legEl = document.getElementById('sigLegend');
+  if (legEl) legEl.textContent = 'Significancia: *** p<0.01 · ** p<0.05 · * p<0.10 · n.s. no significativo — errores estándar por Hessiana numérica';
   const hl = th.beta > 0 && th.beta < 1 ? Math.round(Math.log(0.5) / Math.log(th.beta)) : null;
+  const thetaNS = !isFinite(pTheta) || pTheta >= 0.10;
   const asym = Math.abs(th.theta) < 0.015 ? 'prácticamente <b>simétrico</b>: buenas y malas noticias pesan parecido'
-    : th.theta < 0 ? 'de tipo <b>apalancamiento clásico</b> (θ&lt;0): las caídas disparan más la volatilidad — patrón típico de activos de riesgo'
-    : 'de tipo <b>refugio / FOMO</b> (θ&gt;0): los choques positivos agitan más el mercado que los negativos';
+    : thetaNS ? ('con estimado puntual θ=' + th.theta.toFixed(3) + ' (' + (th.theta < 0 ? 'sugiere apalancamiento' : 'sugiere refugio/FOMO') +
+      '), pero <b>estadísticamente no distinguible de cero</b> (p=' + (isFinite(pTheta) ? pTheta.toFixed(3) : '—') +
+      '): con esta muestra no hay evidencia firme de asimetría — verifica el test LR de abajo')
+    : th.theta < 0 ? 'de tipo <b>apalancamiento clásico</b> (θ&lt;0, p=' + pTheta.toFixed(3) + '): las caídas disparan más la volatilidad — patrón típico de activos de riesgo'
+    : 'de tipo <b>refugio / FOMO</b> (θ&gt;0, p=' + pTheta.toFixed(3) + '): los choques positivos agitan más el mercado que los negativos';
   document.getElementById('liveInterp').innerHTML =
     '<b>Lectura automática:</b> ' + sym + ' muestra persistencia β=' + th.beta.toFixed(3) +
     (hl ? ' (vida media del choque ≈ ' + hl + ' días)' : '') +
