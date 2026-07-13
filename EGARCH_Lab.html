@@ -212,6 +212,35 @@ nav .links a.active{color:var(--gold)}
   .controls{grid-template-columns:1fr}
   #hero h1{font-size:2.35rem}
 }
+
+/* ---- cuestionario ---- */
+.quizProg{display:flex;gap:5px;margin-bottom:1.3rem}
+.quizProg span{flex:1;height:3px;background:var(--line);border-radius:2px;transition:background .3s}
+.quizProg span.cur{background:var(--gold)}
+.quizProg span.ok{background:var(--pos)}
+.quizProg span.bad{background:var(--neg)}
+.qIn{animation:qIn .45s ease both}
+@keyframes qIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+.qNum{font-family:var(--mono);font-size:.72rem;color:var(--gold);letter-spacing:.2em;margin-bottom:.5rem}
+.qQ{font-size:1.06rem;color:var(--txt);margin-bottom:1.1rem;font-weight:400;line-height:1.55}
+.qOpt{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line);color:#C6CEDD;
+  border-radius:8px;padding:.78rem .95rem;margin:.5rem 0;cursor:pointer;font-family:var(--body);
+  font-size:.93rem;line-height:1.5;transition:border-color .2s,background .2s,transform .15s}
+.qOpt:hover:not(:disabled){border-color:var(--gold-dim);transform:translateX(3px)}
+.qOpt:disabled{cursor:default}
+.qOpt.correct{border-color:var(--pos);background:rgba(76,194,168,.12);color:var(--txt)}
+.qOpt.wrong{border-color:var(--neg);background:rgba(224,96,93,.10)}
+.qExp{border-left:3px solid var(--pos);background:var(--panel2);padding:.85rem 1.05rem;border-radius:0 8px 8px 0;
+  font-size:.9rem;color:#C6CEDD;margin-top:1rem;opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s}
+.qExp.show{opacity:1;transform:none}
+.qExp b{color:var(--pos)}
+.qExp.miss{border-left-color:var(--neg)}
+.qExp.miss b{color:var(--neg)}
+.qNext{margin-top:1.1rem}
+.qScoreWrap{text-align:center;padding:.6rem 0 .2rem}
+.qScoreWrap h3{font-size:1.4rem;margin:.8rem 0 .3rem}
+.qScoreWrap p{margin:0 auto 1rem;font-size:.93rem}
+@media (prefers-reduced-motion: reduce){.qIn{animation:none}.qOpt:hover:not(:disabled){transform:none}}
 .hr{border:none;border-top:1px solid var(--line);margin:3.4rem auto;max-width:1060px}
 </style>
 </head>
@@ -228,6 +257,7 @@ nav .links a.active{color:var(--gold)}
     <a href="#s6">Caso: Oro</a>
     <a href="#s7">Lab en vivo</a>
     <a href="#s8">Límites</a>
+    <a href="#s10">Cuestionario</a>
   </div>
 </nav>
 
@@ -724,6 +754,21 @@ nav .links a.active{color:var(--gold)}
     <p>Fernández Castaño, H. (2010). EGARCH: un modelo asimétrico para estimar la volatilidad de series financieras. <em>Revista Ingenierías Universidad de Medellín, 9</em>(16), 49–60.</p>
     <p>Nelson, D. B. (1991). Conditional heteroskedasticity in asset returns: A new approach. <em>Econometrica, 59</em>(2), 347–370. https://doi.org/10.2307/2938260</p>
     <p>Pagan, A. R., & Schwert, G. W. (1990). Alternative models for conditional stock volatility. <em>Journal of Econometrics, 45</em>(1–2), 267–290. https://doi.org/10.1016/0304-4076(90)90101-E</p>
+  </div>
+</section>
+
+
+<hr class="hr">
+
+<!-- ===================== S10: CUESTIONARIO ===================== -->
+<section id="s10" class="reveal">
+  <div class="eyebrow">10 · Autoevaluación</div>
+  <h2>Diez preguntas para poner a prueba lo aprendido</h2>
+  <p class="lead">Todo lo esencial de la exposición — la motivación del modelo, su matemática, la asimetría,
+    el diagnóstico y la gestión de riesgo — condensado en diez decisiones. Cada respuesta trae su explicación.</p>
+  <div class="panel" id="quizBox">
+    <div class="quizProg" id="quizProg"></div>
+    <div id="quizStage"></div>
   </div>
 </section>
 
@@ -1960,8 +2005,175 @@ function drawLiveQQ(est) {
   p.label(-lim * 0.92, lim * 0.86, 'cuantiles teóricos t(ν̂=' + nu.toFixed(1) + ') vs. empíricos de ẑ', css('--muted'));
 }
 
+
+/* ---------- S10: cuestionario ---------- */
+const QUIZ = [
+ { q: "¿Cuál es la principal limitación de los modelos ARCH y GARCH que motiva la formulación del EGARCH?",
+   o: ["No pueden estimarse por máxima verosimilitud",
+       "Son simétricos y exigen restricciones de no negatividad sobre sus parámetros",
+       "No permiten calcular pronósticos a más de un período",
+       "Solo funcionan con datos mensuales"], a: 1,
+   e: "El GARCH sigue siendo simétrico —el término cuadrático borra el signo del choque— y sigue atado a restricciones de no negatividad; Nelson introdujo el EGARCH precisamente para superar ambas limitaciones." },
+ { q: "¿Por qué la transformación logarítmica de la varianza condicional (ln hₜ) es la innovación central del EGARCH?",
+   o: ["Porque simplifica el cálculo de la media condicional",
+       "Porque garantiza que hₜ sea positiva por construcción, sin necesidad de restringir el signo de los parámetros",
+       "Porque elimina la necesidad de estimar el parámetro de persistencia β",
+       "Porque convierte el modelo en uno lineal estimable por MCO"], a: 1,
+   e: "Como el rango del logaritmo es todo ℝ, la varianza implícita hₜ = exp(ln hₜ) es estrictamente positiva por construcción, eliminando las restricciones de no negatividad que exigían ARCH/GARCH." },
+ { q: "En la función de respuesta asimétrica g(z) del EGARCH, ¿qué representa el término α(|zₜ₋₁| − √(2/π))?",
+   o: ["El efecto signo o asimetría del choque",
+       "El efecto magnitud: la reacción al tamaño del choque, sin importar su signo (la parte \"ARCH\" del modelo)",
+       "El nivel de largo plazo de la varianza",
+       "La persistencia de la volatilidad"], a: 1,
+   e: "Es la reacción al tamaño del choque de ayer, sin importar el signo; corresponde a la parte \"ARCH\" del modelo. La resta de E|z| = √(2/π) lo centra: solo los choques mayores de lo esperado elevan la volatilidad." },
+ { q: "¿Qué significa que θ (efecto signo) sea negativo, como suele ocurrir en acciones?",
+   o: ["Que la volatilidad nunca cambia con el signo del choque",
+       "Que los choques positivos disparan más la volatilidad que los negativos",
+       "Que los choques negativos (malas noticias) disparan más la volatilidad que los positivos de igual magnitud",
+       "Que el modelo no es estacionario"], a: 2,
+   e: "Si θ < 0, los choques negativos disparan más la volatilidad, coherente con el efecto apalancamiento de Black (1976): las caídas elevan el ratio deuda/capital y el riesgo percibido de la firma." },
+ { q: "En el caso aplicado al oro (GLD) se estimó θ = +0.042. ¿Qué interpretación económica tiene este resultado?",
+   o: ["El oro se comporta igual que una acción típica",
+       "Es un error de estimación, porque θ siempre debe ser negativo",
+       "En el oro, las buenas noticias (choques positivos) agitan más la volatilidad que las malas, coherente con su rol de activo refugio",
+       "La volatilidad del oro no depende del signo del choque"], a: 2,
+   e: "El signo de θ es la firma econométrica del oro como activo refugio: en crisis los inversores corren hacia el oro, y son esas subidas abruptas las que elevan la volatilidad." },
+ { q: "Según la tabla de equivalencia de notación, el parámetro alpha[1] del paquete arch de Python ¿a qué corresponde en la notación de Nelson (1991) y en esta exposición?",
+   o: ["A la persistencia β",
+       "Al efecto magnitud: γ en Nelson, α en esta exposición",
+       "Al efecto signo: θ en Nelson y en esta exposición",
+       "Al intercepto ω"], a: 1,
+   e: "El efecto de magnitud del choque (|z|−E|z|) se llama γ en Nelson (1991), alpha[1] en el paquete arch y α en esta exposición; confundirlo con el efecto de signo invierte la interpretación económica del modelo." },
+ { q: "¿Cuál es la condición de estacionariedad de un proceso EGARCH(1,1)?",
+   o: ["α + β < 1", "|β| < 1", "θ = 0", "ω > 0"], a: 1,
+   e: "Como ln hₜ sigue un AR(1) en logaritmos con innovación de media cero, la condición de estacionariedad (y ergodicidad, Nelson 1991) es simplemente |β| < 1, sin sumas de coeficientes que vigilar como en GARCH." },
+ { q: "¿Por qué no existe una fórmula analítica cerrada para el pronóstico multi-paso de la varianza en EGARCH, a diferencia del GARCH estándar?",
+   o: ["Porque el modelo no es estacionario",
+       "Porque, por la desigualdad de Jensen, E[exp(ln h)] ≠ exp(E[ln h]): despejar el logaritmo introduce sesgo",
+       "Porque θ cambia en cada periodo",
+       "Porque el modelo solo admite un horizonte de un día"], a: 1,
+   e: "El modelo vive en logaritmos y, por la desigualdad de Jensen, \"despejar\" el logaritmo produce sesgo; la salida correcta es simular miles de trayectorias por Monte Carlo y promediarlas — exactamente lo que hace el abanico de esta exposición." },
+ { q: "¿Qué indica una prueba de Ljung–Box con p = 0.064 sobre los residuales estandarizados al cuadrado (ẑₜ²) de un EGARCH(1,1) ajustado?",
+   o: ["Que el modelo debe rechazarse por falta de ajuste",
+       "Que sigue existiendo estructura ARCH sin modelar",
+       "Que no se rechaza la ausencia de autocorrelación: el modelo limpió adecuadamente la aglomeración de volatilidad",
+       "Que la distribución t-Student no es adecuada para estos datos"], a: 2,
+   e: "Con p = 0.064 > 0.05 no se rechaza la hipótesis nula de ausencia de autocorrelación en ẑₜ²: el EGARCH(1,1) absorbió toda la estructura de volatilidad y la especificación queda validada." },
+ { q: "¿Qué prueba se usa en el laboratorio para determinar si la frecuencia de violaciones del VaR 95% observada en el backtesting es compatible con el 5% prometido?",
+   o: ["La prueba ARCH-LM de Engle",
+       "La prueba de Kupiec (cobertura incondicional)",
+       "El criterio de información BIC",
+       "La prueba de Ljung–Box"], a: 1,
+   e: "Con los parámetros estimados se reconstruye el VaR de cada día y se cuentan las violaciones; la prueba de Kupiec (cobertura incondicional, LR ~ χ²(1)) dictamina si esa frecuencia es compatible con el 5% prometido." }
+];
+let quizIdx = 0, quizHits = 0, quizDone = [];
+function quizProgRender() {
+  const pr = document.getElementById('quizProg');
+  pr.innerHTML = '';
+  QUIZ.forEach((_, i) => {
+    const s = document.createElement('span');
+    if (quizDone[i] === true) s.className = 'ok';
+    else if (quizDone[i] === false) s.className = 'bad';
+    else if (i === quizIdx) s.className = 'cur';
+    pr.appendChild(s);
+  });
+}
+function quizRender() {
+  quizProgRender();
+  const st = document.getElementById('quizStage');
+  const Q = QUIZ[quizIdx];
+  st.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'qIn';
+  wrap.innerHTML = '<div class="qNum">PREGUNTA ' + (quizIdx + 1) + ' DE ' + QUIZ.length + '</div>' +
+    '<div class="qQ">' + Q.q + '</div>';
+  Q.o.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.className = 'qOpt'; b.textContent = String.fromCharCode(97 + i) + ')  ' + opt;
+    b.addEventListener('click', () => quizAnswer(i, wrap));
+    wrap.appendChild(b);
+  });
+  st.appendChild(wrap);
+}
+function quizAnswer(i, wrap) {
+  const Q = QUIZ[quizIdx];
+  const opts = wrap.querySelectorAll('.qOpt');
+  opts.forEach(o => o.disabled = true);
+  const hit = i === Q.a;
+  opts[Q.a].classList.add('correct');
+  if (!hit) opts[i].classList.add('wrong');
+  quizDone[quizIdx] = hit; if (hit) quizHits++;
+  quizProgRender();
+  const ex = document.createElement('div');
+  ex.className = 'qExp' + (hit ? '' : ' miss');
+  ex.innerHTML = '<b>' + (hit ? 'Correcto.' : 'La respuesta era la ' + String.fromCharCode(97 + Q.a) + ').') + '</b> ' + Q.e;
+  wrap.appendChild(ex);
+  requestAnimationFrame(() => requestAnimationFrame(() => ex.classList.add('show')));
+  const nx = document.createElement('button');
+  nx.className = 'btn primary qNext';
+  nx.textContent = quizIdx < QUIZ.length - 1 ? 'Siguiente pregunta' : 'Ver resultado';
+  nx.addEventListener('click', () => { quizIdx++; quizIdx < QUIZ.length ? quizRender() : quizFinish(); });
+  wrap.appendChild(nx);
+}
+function quizFinish() {
+  quizProgRender();
+  const st = document.getElementById('quizStage');
+  const n = QUIZ.length, s = quizHits;
+  const msg = s === n ? 'Dominio total: teoría, matemática, diagnóstico y riesgo. Nada que agregar.'
+    : s >= 8 ? 'Nivel de exposición: los fundamentos y la asimetría están firmes.'
+    : s >= 6 ? 'Buena base. Vale repasar las secciones 03 (formulación) y 06 (caso oro) antes de defender.'
+    : 'Aún en construcción: recorre de nuevo la genealogía (02) y juega con la curva de impacto (04) — ahí vive la intuición.';
+  st.innerHTML = '<div class="qScoreWrap qIn"><canvas id="cvScore" width="240" height="240" style="max-width:240px"></canvas>' +
+    '<h3>' + s + ' de ' + n + '</h3><p style="max-width:46ch">' + msg + '</p>' +
+    '<button class="btn" id="btnQuizRetry">Reintentar el cuestionario</button></div>';
+  document.getElementById('btnQuizRetry').addEventListener('click', () => {
+    quizIdx = 0; quizHits = 0; quizDone = []; quizRender();
+  });
+  quizScoreAnim(s / n);
+}
+function quizScoreAnim(frac) {
+  const cv = document.getElementById('cvScore');
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = 240 * dpr; cv.height = 240 * dpr;
+  cv.style.width = '240px'; cv.style.height = '240px';
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cx = 120, cy = 120, R = 88;
+  const parts = [];
+  if (frac >= 0.8) for (let i = 0; i < 110; i++) {
+    const a = Math.random() * 6.2832, v = 1.5 + Math.random() * 3.2;
+    parts.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5,
+      c: [css('--gold'), css('--pos'), '#f3c765'][i % 3], life: 1 });
+  }
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const draw = (f, t) => {
+    c.clearRect(0, 0, 240, 240);
+    c.lineWidth = 10; c.lineCap = 'round';
+    c.strokeStyle = css('--line');
+    c.beginPath(); c.arc(cx, cy, R, 0, 6.2832); c.stroke();
+    c.strokeStyle = frac >= 0.6 ? css('--gold') : css('--neg');
+    c.beginPath(); c.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + 6.2832 * frac * f); c.stroke();
+    c.fillStyle = css('--txt'); c.font = '500 34px "Fraunces", Georgia, serif'; c.textAlign = 'center';
+    c.fillText(Math.round(frac * f * 100) + '%', cx, cy + 12);
+    parts.forEach(p2 => {
+      if (p2.life <= 0) return;
+      p2.x += p2.vx; p2.y += p2.vy; p2.vy += 0.07; p2.life -= 0.012;
+      c.globalAlpha = Math.max(p2.life, 0); c.fillStyle = p2.c;
+      c.beginPath(); c.arc(p2.x, p2.y, 2.2, 0, 6.2832); c.fill();
+    });
+    c.globalAlpha = 1;
+  };
+  if (reduce) { draw(1, 1); return; }
+  const t0 = performance.now(), dur = 1200;
+  const step = now => {
+    const f = Math.min((now - t0) / dur, 1);
+    draw(1 - Math.pow(1 - f, 3), f);
+    if (f < 1 || parts.some(p2 => p2.life > 0)) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 /* ---------- infraestructura ---------- */
-const SECTION_IDS = ['hero', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'];
+const SECTION_IDS = ['hero', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10'];
 function wirePresentation() {
   const dots = document.createElement('div');
   dots.className = 'dots'; dots.setAttribute('aria-hidden', 'true');
@@ -2011,6 +2223,7 @@ window.addEventListener('DOMContentLoaded', () => {
   drawIRF(1);
   document.getElementById('btnShock').addEventListener('click', fireIRF);
   ['rB', 'rA', 'rTh'].forEach(id => document.getElementById(id).addEventListener('input', () => drawIRF(1)));
+  quizRender();
   wireScroll(); wirePresentation();
   let rz;
   window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { drawS1(); drawNIC(); drawSim(); drawIRF(1); goldFan(); drawPartBase(); }, 250); });
